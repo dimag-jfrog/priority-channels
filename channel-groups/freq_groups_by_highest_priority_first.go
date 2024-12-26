@@ -20,8 +20,8 @@ func newPriorityChannelsGroupByPriority[T any](
 	for _, q := range channelsGroupsWithPriorities {
 		aggregatedC := make(chan msgWithChannelName[T])
 		if len(q.ChannelsWithFreqRatios) == 1 {
-			Channel := q.ChannelsWithFreqRatios[0]
-			go messagesChannelToMessagesWithChannelNameChannel(ctx, Channel.ChannelName, Channel.MsgsC, aggregatedC)
+			channel := q.ChannelsWithFreqRatios[0]
+			go messagesChannelToMessagesWithChannelNameChannel(ctx, channel.ChannelName, channel.MsgsC, aggregatedC)
 		} else {
 			msgProcessor := func(_ context.Context, msg T, ChannelName string) {
 				aggregatedC <- msgWithChannelName[T]{Msg: msg, ChannelName: ChannelName}
@@ -42,11 +42,11 @@ func newPriorityChannelsGroupByPriority[T any](
 
 func ProcessMessagesByPriorityAmongFreqRatioChannelGroups[T any](
 	ctx context.Context,
-	ChannelsGroupsWithFreqRatios []PriorityChannelGroupWithFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, ChannelName string)) priority_channels.ExitReason {
-	Channels := newPriorityChannelsGroupByPriority(ctx, ChannelsGroupsWithFreqRatios)
-	msgProcessorNew := func(_ context.Context, msg msgWithChannelName[T], ChannelName string) {
+	channelsGroupsWithFreqRatios []PriorityChannelGroupWithFreqRatio[T],
+	msgProcessor func(ctx context.Context, msg T, channelName string)) priority_channels.ExitReason {
+	channels := newPriorityChannelsGroupByPriority(ctx, channelsGroupsWithFreqRatios)
+	msgProcessorNew := func(_ context.Context, msg msgWithChannelName[T], channelName string) {
 		msgProcessor(ctx, msg.Msg, msg.ChannelName)
 	}
-	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx, Channels, msgProcessorNew)
+	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, msgProcessorNew)
 }
