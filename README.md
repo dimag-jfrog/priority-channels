@@ -1,2 +1,2 @@
 # priority-channels
-Process Golang channels by priority
+Process Go channels by priority
