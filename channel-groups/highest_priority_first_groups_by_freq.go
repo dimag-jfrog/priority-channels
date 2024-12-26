@@ -4,7 +4,7 @@ import (
 	"context"
 	"sort"
 
-	priority_channels "github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels"
 )
 
 type ChannelGroupWithHighestPriorityFirst[T any] struct {
