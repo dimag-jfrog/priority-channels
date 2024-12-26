@@ -21,7 +21,7 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	Channels := []pc.ChannelFreqRatio[*Msg]{
+	channels := []pc.ChannelFreqRatio[*Msg]{
 		{
 			ChannelName: "Priority-1",
 			MsgsC:       msgsChannels[0],
@@ -46,7 +46,7 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 
 	for i := 0; i <= 2; i++ {
 		for j := 1; j <= 15; j++ {
-			msgsChannels[i] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", Channels[i].ChannelName, j)}
+			msgsChannels[i] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[i].ChannelName, j)}
 		}
 	}
 	msgsChannels[3] <- &Msg{Body: "Priority-1000 Msg-1"}
@@ -57,7 +57,7 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByFrequencyRatio(ctx, Channels, msgProcessor)
+	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
