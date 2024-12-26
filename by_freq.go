@@ -32,10 +32,10 @@ type ChannelFreqRatio[T any] struct {
 }
 
 func newPriorityChannelByFrequencyRatio[T any](
-	ChannelsWithFreqRatios []ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
+	channelsWithFreqRatios []ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
 	zeroLevel := &level[T]{}
-	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(ChannelsWithFreqRatios))
-	for _, q := range ChannelsWithFreqRatios {
+	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(channelsWithFreqRatios))
+	for _, q := range channelsWithFreqRatios {
 		zeroLevel.Buckets = append(zeroLevel.Buckets, &priorityBucket[T]{
 			Value:       0,
 			Capacity:    q.FreqRatio,
@@ -49,15 +49,15 @@ func newPriorityChannelByFrequencyRatio[T any](
 	})
 	return &priorityChannelsByFreq[T]{
 		levels:       []*level[T]{zeroLevel},
-		totalBuckets: len(ChannelsWithFreqRatios),
+		totalBuckets: len(channelsWithFreqRatios),
 	}
 }
 
 func ProcessMessagesByFrequencyRatio[T any](
 	ctx context.Context,
-	ChannelsWithFreqRatios []ChannelFreqRatio[T],
+	channelsWithFreqRatios []ChannelFreqRatio[T],
 	msgProcessor func(ctx context.Context, msg T, ChannelName string)) ExitReason {
-	pq := newPriorityChannelByFrequencyRatio(ChannelsWithFreqRatios)
+	pq := newPriorityChannelByFrequencyRatio(channelsWithFreqRatios)
 	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
 }
 
