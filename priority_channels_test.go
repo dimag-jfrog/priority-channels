@@ -46,7 +46,6 @@ func TestAll(t *testing.T) {
 
 func testExample(t *testing.T, pattern UsagePattern) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	payingCustomerHighPriorityC := make(chan string)
 	payingCustomerLowPriorityC := make(chan string)
@@ -61,6 +60,7 @@ func testExample(t *testing.T, pattern UsagePattern) {
 		freeUserHighPriorityC,
 		freeUserLowPriorityC)
 	if ch == nil {
+		cancel()
 		return
 	}
 
@@ -88,10 +88,7 @@ func testExample(t *testing.T, pattern UsagePattern) {
 
 	go func() {
 		time.Sleep(3 * time.Second)
-		close(payingCustomerHighPriorityC)
-		close(payingCustomerLowPriorityC)
-		close(freeUserHighPriorityC)
-		close(freeUserLowPriorityC)
+		cancel()
 	}()
 
 	// receiving messages from the priority channel
@@ -101,6 +98,7 @@ func testExample(t *testing.T, pattern UsagePattern) {
 			break
 		}
 		fmt.Printf("%s: %s\n", channelName, message)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

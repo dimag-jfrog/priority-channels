@@ -35,7 +35,8 @@ const (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+
 	payingCustomerHighPriorityC := make(chan string)
 	payingCustomerLowPriorityC := make(chan string)
 	freeUserHighPriorityC := make(chan string)
@@ -49,6 +50,7 @@ func main() {
 		freeUserHighPriorityC,
 		freeUserLowPriorityC)
 	if ch == nil {
+		cancel()
 		return
 	}
 
@@ -76,10 +78,7 @@ func main() {
 
 	go func() {
 		time.Sleep(3 * time.Second)
-		close(payingCustomerHighPriorityC)
-		close(payingCustomerLowPriorityC)
-		close(freeUserHighPriorityC)
-		close(freeUserLowPriorityC)
+		cancel()
 	}()
 
 	// receiving messages from the priority channel
@@ -89,6 +88,7 @@ func main() {
 			break
 		}
 		fmt.Printf("%s: %s\n", channelName, message)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
