@@ -1,28 +1,13 @@
-# priority-channels
-Process Go channels by priority. 
-
-
-The following use cases are supported:
-
-- Highest priority always first - when we always want to process messages in order of priority
-- Processing by frequency ratio - when we want to prevent starvation of lower priority messages
-- Channel groups by highest priority first inside group and choose among groups by frequency ratio
-- Channel groups by frequency ratio inside group and choose among groups by highest priority first
-
-
-## Usage
-
-```go
-
-package main
+package priority_channels_test
 
 import (
 	"context"
 	"fmt"
+	"testing"
 	"time"
-	
-	"github.com/dimag-jfrog/priority-channels"
-	"github.com/dimag-jfrog/priority-channels/channels-groups"
+
+	priority_channels "github.com/dimag-jfrog/priority-channels"
+	channel_groups "github.com/dimag-jfrog/priority-channels/channel-groups"
 )
 
 type UsagePattern int
@@ -34,7 +19,33 @@ const (
 	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser
 )
 
-func main() {
+var usagePatternNames = map[UsagePattern]string{
+	HighestPriorityAlwaysFirst: "Highest Priority Always First",
+	FrequencyRatioForAll:       "Frequency Ratio For All",
+	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser:    "Paying Customer Always First, No Starvation Of Low Messages For Same User",
+	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser: "No Starvation Of Free User, High Priority Messages Always First For Same User",
+}
+
+func TestAll(t *testing.T) {
+	usagePatterns := []UsagePattern{
+		//HighestPriorityAlwaysFirst,
+		//FrequencyRatioForAll,
+		//PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser,
+		NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser,
+	}
+	for _, usagePattern := range usagePatterns {
+		t.Run(usagePatternNames[usagePattern], func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Recovered from panic: %v", r)
+				}
+			}()
+			testExample(t, usagePattern)
+		})
+	}
+}
+
+func testExample(t *testing.T, pattern UsagePattern) {
 	ctx := context.Background()
 	payingCustomerHighPriorityC := make(chan string)
 	payingCustomerLowPriorityC := make(chan string)
@@ -43,7 +54,7 @@ func main() {
 
 	ch := getPriorityChannelByUsagePattern(
 		ctx,
-		HighestPriorityAlwaysFirst,
+		pattern,
 		payingCustomerHighPriorityC,
 		payingCustomerLowPriorityC,
 		freeUserHighPriorityC,
@@ -221,4 +232,3 @@ func getPriorityChannelByUsagePattern(
 		return nil
 	}
 }
-```
