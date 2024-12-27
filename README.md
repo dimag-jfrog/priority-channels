@@ -4,13 +4,19 @@ Process Go channels by priority.
 
 The following use cases are supported:
 
-- Highest priority always first - when we always want to process messages in order of priority
-- Processing by frequency ratio - when we want to prevent starvation of lower priority messages
+Main use cases:
+- **Highest priority always first** - when we always want to process messages in order of priority
+- **Processing by frequency ratio** - when we want to prevent starvation of lower priority messages
+
+Combinations of main use cases - channel groups:
 - Channel groups by highest priority first inside group and choose among groups by frequency ratio
 - Channel groups by frequency ratio inside group and choose among groups by highest priority first
+- Channel groups by frequency ratio inside group and choose among groups by frequency ratio
 
 
 ## Usage
+
+### Full example
 
 ```go
 
@@ -32,6 +38,7 @@ const (
 	FrequencyRatioForAll
 	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser
 	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser
+	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessagesForSameUser
 )
 
 func main() {
@@ -222,6 +229,41 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		return channel_groups.NewByFreqRatioAmongHighestPriorityFirstChannelGroups[string](ctx, channelsWithFreqRatio)
+
+	case FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessagesForSameUser:
+		channelsWithFreqRatio := []channel_groups.FreqRatioChannelGroupWithFreqRatio[string]{
+			{
+				ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
+					{
+						ChannelName: "Paying Customer - High Priority",
+						MsgsC:       payingCustomerHighPriorityC,
+						FreqRatio:   5,
+					},
+					{
+						ChannelName: "Paying Customer - Low Priority",
+						MsgsC:       payingCustomerLowPriorityC,
+						FreqRatio:   1,
+					},
+				},
+				FreqRatio: 10,
+			},
+			{
+				ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
+					{
+						ChannelName: "Free User - High Priority",
+						MsgsC:       freeUserHighPriorityC,
+						FreqRatio:   5,
+					},
+					{
+						ChannelName: "Free User - Low Priority",
+						MsgsC:       freeUserLowPriorityC,
+						FreqRatio:   1,
+					},
+				},
+				FreqRatio: 1,
+			},
+		}
+		return channel_groups.NewByFreqRatioAmongFreqRatioChannelGroups[string](ctx, channelsWithFreqRatio)
 		
 	default:
 		return nil
