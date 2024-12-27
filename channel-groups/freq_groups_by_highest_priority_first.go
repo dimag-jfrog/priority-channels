@@ -7,6 +7,27 @@ import (
 	"github.com/dimag-jfrog/priority-channels"
 )
 
+func NewByHighestPriorityFirstAmongFreqRatioChannelGroups[T any](ctx context.Context, channelsGroupsWithFreqRatio []PriorityChannelGroupWithFreqRatio[T]) priority_channels.PriorityChannel[T] {
+	channels := newPriorityChannelsGroupByPriority[T](ctx, channelsGroupsWithFreqRatio)
+	return &priorityChannelsByHighestPriorityFirstAmongFreqRatioChannelGroups[T]{
+		ctx:                       ctx,
+		priorityChannelByPriority: priority_channels.NewWithHighestAlwaysFirst[msgWithChannelName[T]](channels),
+	}
+}
+
+type priorityChannelsByHighestPriorityFirstAmongFreqRatioChannelGroups[T any] struct {
+	ctx                       context.Context
+	priorityChannelByPriority priority_channels.PriorityChannel[msgWithChannelName[T]]
+}
+
+func (pc *priorityChannelsByHighestPriorityFirstAmongFreqRatioChannelGroups[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
+	msgWithChannelName, _, ok := pc.priorityChannelByPriority.Receive(ctx)
+	if !ok {
+		return getZero[T](), "", false
+	}
+	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, true
+}
+
 type PriorityChannelGroupWithFreqRatio[T any] struct {
 	ChannelsWithFreqRatios []priority_channels.ChannelFreqRatio[T]
 	Priority               int

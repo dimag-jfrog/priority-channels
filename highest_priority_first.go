@@ -7,6 +7,18 @@ import (
 	"time"
 )
 
+func NewWithHighestAlwaysFirst[T any](channelsWithPriorities []ChannelWithPriority[T]) PriorityChannel[T] {
+	return newPriorityChannelByPriority[T](channelsWithPriorities)
+}
+
+func (pc *priorityChannelsHighestFirst[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
+	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
+	if noMoreMessages != nil {
+		return getZero[T](), "", false
+	}
+	return msgReceived.Msg, msgReceived.ChannelName, true
+}
+
 type ChannelWithPriority[T any] struct {
 	ChannelName string
 	MsgsC       <-chan T

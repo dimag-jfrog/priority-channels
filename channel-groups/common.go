@@ -25,3 +25,8 @@ func messagesChannelToMessagesWithChannelNameChannel[T any](
 		}
 	}
 }
+
+func getZero[T any]() T {
+	var result T
+	return result
+}

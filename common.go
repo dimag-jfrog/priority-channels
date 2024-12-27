@@ -4,6 +4,10 @@ import (
 	"context"
 )
 
+type PriorityChannel[T any] interface {
+	Receive(ctx context.Context) (msg T, channelName string, ok bool)
+}
+
 type priorityChannelMsgReceiver[T any] interface {
 	ReceiveSingleMessage(ctx context.Context) (msgReceived *msgReceivedEvent[T], noMoreMessages *noMoreMessagesEvent)
 }
@@ -38,4 +42,9 @@ func processPriorityChannelMessages[T any](
 		}
 		msgProcessor(ctx, msgReceived.Msg, msgReceived.ChannelName)
 	}
+}
+
+func getZero[T any]() T {
+	var result T
+	return result
 }
