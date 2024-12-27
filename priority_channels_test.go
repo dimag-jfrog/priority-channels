@@ -45,7 +45,9 @@ func TestAll(t *testing.T) {
 }
 
 func testExample(t *testing.T, pattern UsagePattern) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	payingCustomerHighPriorityC := make(chan string)
 	payingCustomerLowPriorityC := make(chan string)
 	freeUserHighPriorityC := make(chan string)
@@ -110,7 +112,9 @@ func getPriorityChannelByUsagePattern(
 	freeUserHighPriorityC chan string,
 	freeUserLowPriorityC chan string,
 ) priority_channels.PriorityChannel[string] {
+
 	switch usage {
+
 	case HighestPriorityAlwaysFirst:
 		channelsWithPriority := []priority_channels.ChannelWithPriority[string]{
 			{
@@ -135,6 +139,7 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		return priority_channels.NewWithHighestAlwaysFirst[string](channelsWithPriority)
+
 	case FrequencyRatioForAll:
 		channelsWithFrequencyRatio := []priority_channels.ChannelFreqRatio[string]{
 			{
@@ -159,6 +164,7 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		return priority_channels.NewWithFrequencyRatio[string](channelsWithFrequencyRatio)
+
 	case PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser:
 		channelsWithPriority := []channel_groups.PriorityChannelGroupWithFreqRatio[string]{
 			{
@@ -193,6 +199,7 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		return channel_groups.NewByHighestPriorityFirstAmongFreqRatioChannelGroups[string](ctx, channelsWithPriority)
+
 	case NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser:
 		channelsWithFreqRatio := []channel_groups.ChannelGroupWithHighestPriorityFirst[string]{
 			{
@@ -227,6 +234,7 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		return channel_groups.NewByFreqRatioAmongHighestPriorityFirstChannelGroups[string](ctx, channelsWithFreqRatio)
+
 	default:
 		return nil
 	}
