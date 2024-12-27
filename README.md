@@ -74,6 +74,14 @@ func main() {
 		}
 	}()
 
+	go func() {
+		time.Sleep(3 * time.Second)
+		close(payingCustomerHighPriorityC)
+		close(payingCustomerLowPriorityC)
+		close(freeUserHighPriorityC)
+		close(freeUserLowPriorityC)
+	}()
+
 	// receiving messages from the priority channel
 	for {
 		message, channelName, ok := ch.Receive(ctx)
@@ -82,14 +90,6 @@ func main() {
 		}
 		fmt.Printf("%s: %s\n", channelName, message)
 	}
-
-	go func() {
-		time.Sleep(3 * time.Second)
-		close(payingCustomerHighPriorityC)
-		close(payingCustomerLowPriorityC)
-		close(freeUserHighPriorityC)
-		close(freeUserLowPriorityC)
-	}()
 }
 
 func getPriorityChannelByUsagePattern(

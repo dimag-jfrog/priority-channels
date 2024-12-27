@@ -3,11 +3,10 @@ package priority_channels_test
 import (
 	"context"
 	"fmt"
-	"testing"
-	"time"
-
 	priority_channels "github.com/dimag-jfrog/priority-channels"
 	channel_groups "github.com/dimag-jfrog/priority-channels/channel-groups"
+	"testing"
+	"time"
 )
 
 type UsagePattern int
@@ -28,9 +27,9 @@ var usagePatternNames = map[UsagePattern]string{
 
 func TestAll(t *testing.T) {
 	usagePatterns := []UsagePattern{
-		//HighestPriorityAlwaysFirst,
-		//FrequencyRatioForAll,
-		//PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser,
+		HighestPriorityAlwaysFirst,
+		FrequencyRatioForAll,
+		PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser,
 		NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser,
 	}
 	for _, usagePattern := range usagePatterns {
@@ -85,6 +84,14 @@ func testExample(t *testing.T, pattern UsagePattern) {
 		}
 	}()
 
+	go func() {
+		time.Sleep(3 * time.Second)
+		close(payingCustomerHighPriorityC)
+		close(payingCustomerLowPriorityC)
+		close(freeUserHighPriorityC)
+		close(freeUserLowPriorityC)
+	}()
+
 	// receiving messages from the priority channel
 	for {
 		message, channelName, ok := ch.Receive(ctx)
@@ -93,14 +100,6 @@ func testExample(t *testing.T, pattern UsagePattern) {
 		}
 		fmt.Printf("%s: %s\n", channelName, message)
 	}
-
-	go func() {
-		time.Sleep(3 * time.Second)
-		close(payingCustomerHighPriorityC)
-		close(payingCustomerLowPriorityC)
-		close(freeUserHighPriorityC)
-		close(freeUserLowPriorityC)
-	}()
 }
 
 func getPriorityChannelByUsagePattern(
