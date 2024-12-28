@@ -42,7 +42,7 @@ func newFreqRatioChannelsGroupByFreqRatio[T any](
 		aggregatedC := make(chan msgWithChannelName[T])
 		if len(q.ChannelsWithFreqRatios) == 1 {
 			channel := q.ChannelsWithFreqRatios[0]
-			go messagesChannelToMessagesWithChannelNameChannel(ctx, channel.ChannelName, channel.MsgsC, aggregatedC)
+			go messagesChannelToMessagesWithChannelNameChannel(ctx, channel.ChannelName(), channel.MsgsC(), aggregatedC)
 		} else {
 			msgProcessor := func(_ context.Context, msg T, ChannelName string) {
 				aggregatedC <- msgWithChannelName[T]{Msg: msg, ChannelName: ChannelName}
@@ -50,13 +50,10 @@ func newFreqRatioChannelsGroupByFreqRatio[T any](
 			go priority_channels.ProcessMessagesByFrequencyRatio(ctx, q.ChannelsWithFreqRatios, msgProcessor)
 		}
 
-		res = append(res, priority_channels.ChannelFreqRatio[msgWithChannelName[T]]{
-			MsgsC:     aggregatedC,
-			FreqRatio: q.FreqRatio,
-		})
+		res = append(res, priority_channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", aggregatedC, q.FreqRatio))
 	}
 	sort.Slice(res, func(i int, j int) bool {
-		return res[i].FreqRatio > res[j].FreqRatio
+		return res[i].FreqRatio() > res[j].FreqRatio()
 	})
 	return res
 }

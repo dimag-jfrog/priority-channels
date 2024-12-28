@@ -25,36 +25,20 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 	channels := []channel_groups.PriorityChannelGroupWithFreqRatio[*Msg]{
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[*Msg]{
-				{
-					ChannelName: "Priority-1",
-					MsgsC:       msgsChannels[0],
-					FreqRatio:   1,
-				},
-				{
-					ChannelName: "Priority-5",
-					MsgsC:       msgsChannels[1],
-					FreqRatio:   5,
-				},
+				priority_channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+				priority_channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
 			},
 			Priority: 1,
 		},
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[*Msg]{
-				{
-					ChannelName: "Priority-10",
-					MsgsC:       msgsChannels[2],
-					FreqRatio:   1,
-				},
+				priority_channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 1),
 			},
 			Priority: 10,
 		},
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[*Msg]{
-				{
-					ChannelName: "Priority-1000",
-					MsgsC:       msgsChannels[3],
-					FreqRatio:   1,
-				},
+				priority_channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1),
 			},
 			Priority: 1000,
 		},
@@ -149,26 +133,14 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 	channels := []channel_groups.PriorityChannelGroupWithFreqRatio[*Msg]{
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[*Msg]{
-				{
-					ChannelName: "Priority-1",
-					MsgsC:       msgsChannels[0],
-					FreqRatio:   1,
-				},
-				{
-					ChannelName: "Priority-2",
-					MsgsC:       msgsChannels[1],
-					FreqRatio:   2,
-				},
+				priority_channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+				priority_channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
 			},
 			Priority: 1,
 		},
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[*Msg]{
-				{
-					ChannelName: "Priority-3",
-					MsgsC:       msgsChannels[2],
-					FreqRatio:   1,
-				},
+				priority_channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 1),
 			},
 			Priority: 2,
 		},

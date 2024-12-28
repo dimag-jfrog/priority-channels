@@ -20,36 +20,20 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	channels := []channel_groups.ChannelGroupWithHighestPriorityFirst[*Msg]{
 		{
 			ChannelsWithPriority: []priority_channels.ChannelWithPriority[*Msg]{
-				{
-					ChannelName: "Priority-1",
-					MsgsC:       msgsChannels[0],
-					Priority:    1,
-				},
-				{
-					ChannelName: "Priority-5",
-					MsgsC:       msgsChannels[1],
-					Priority:    5,
-				},
+				priority_channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+				priority_channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
 			},
 			FreqRatio: 1,
 		},
 		{
 			ChannelsWithPriority: []priority_channels.ChannelWithPriority[*Msg]{
-				{
-					ChannelName: "Priority-10",
-					MsgsC:       msgsChannels[2],
-					Priority:    10,
-				},
+				priority_channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
 			},
 			FreqRatio: 5,
 		},
 		{
 			ChannelsWithPriority: []priority_channels.ChannelWithPriority[*Msg]{
-				{
-					ChannelName: "Priority-1000",
-					MsgsC:       msgsChannels[3],
-					Priority:    1000,
-				},
+				priority_channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
 			},
 			FreqRatio: 10,
 		},

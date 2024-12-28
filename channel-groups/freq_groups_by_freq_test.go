@@ -10,7 +10,7 @@ import (
 	"github.com/dimag-jfrog/priority-channels/channel-groups"
 )
 
-func TestProcessMessagesByFrequRatioAmongFreqRatioChannelGroups(t *testing.T) {
+func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	payingCustomerHighPriorityC := make(chan string)
@@ -21,31 +21,27 @@ func TestProcessMessagesByFrequRatioAmongFreqRatioChannelGroups(t *testing.T) {
 	channelsWithFreqRatio := []channel_groups.FreqRatioChannelGroupWithFreqRatio[string]{
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
-				{
-					ChannelName: "Paying Customer - High Priority",
-					MsgsC:       payingCustomerHighPriorityC,
-					FreqRatio:   5,
-				},
-				{
-					ChannelName: "Paying Customer - Low Priority",
-					MsgsC:       payingCustomerLowPriorityC,
-					FreqRatio:   1,
-				},
+				priority_channels.NewChannelWithFreqRatio(
+					"Paying Customer - High Priority",
+					payingCustomerHighPriorityC,
+					5),
+				priority_channels.NewChannelWithFreqRatio(
+					"Paying Customer - Low Priority",
+					payingCustomerLowPriorityC,
+					1),
 			},
 			FreqRatio: 10,
 		},
 		{
 			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
-				{
-					ChannelName: "Free User - High Priority",
-					MsgsC:       freeUserHighPriorityC,
-					FreqRatio:   5,
-				},
-				{
-					ChannelName: "Free User - Low Priority",
-					MsgsC:       freeUserLowPriorityC,
-					FreqRatio:   1,
-				},
+				priority_channels.NewChannelWithFreqRatio(
+					"Free User - High Priority",
+					freeUserHighPriorityC,
+					5),
+				priority_channels.NewChannelWithFreqRatio(
+					"Free User - Low Priority",
+					freeUserLowPriorityC,
+					1),
 			},
 			FreqRatio: 1,
 		},

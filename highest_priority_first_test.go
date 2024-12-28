@@ -18,31 +18,15 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
 	msgsChannels[3] = make(chan *Msg, 15)
 
 	channels := []pc.ChannelWithPriority[*Msg]{
-		{
-			ChannelName: "Priority-1",
-			MsgsC:       msgsChannels[0],
-			Priority:    1,
-		},
-		{
-			ChannelName: "Priority-5",
-			MsgsC:       msgsChannels[1],
-			Priority:    5,
-		},
-		{
-			ChannelName: "Priority-10",
-			MsgsC:       msgsChannels[2],
-			Priority:    10,
-		},
-		{
-			ChannelName: "Priority-1000",
-			MsgsC:       msgsChannels[3],
-			Priority:    1000,
-		},
+		pc.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+		pc.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
+		pc.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
+		pc.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
 	}
 
 	for i := 0; i <= 2; i++ {
 		for j := 1; j <= 15; j++ {
-			msgsChannels[i] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[i].ChannelName, j)}
+			msgsChannels[i] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[i].ChannelName(), j)}
 		}
 	}
 	msgsChannels[3] <- &Msg{Body: "Priority-1000 Msg-1"}
@@ -125,31 +109,19 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 	msgsChannels[2] = make(chan *Msg, 7)
 
 	channels := []pc.ChannelWithPriority[*Msg]{
-		{
-			ChannelName: "Priority-1",
-			MsgsC:       msgsChannels[0],
-			Priority:    1,
-		},
-		{
-			ChannelName: "Priority-2",
-			MsgsC:       msgsChannels[1],
-			Priority:    2,
-		},
-		{
-			ChannelName: "Priority-3",
-			MsgsC:       msgsChannels[2],
-			Priority:    3,
-		},
+		pc.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+		pc.NewChannelWithPriority("Priority-2", msgsChannels[1], 2),
+		pc.NewChannelWithPriority("Priority-3", msgsChannels[2], 3),
 	}
 
 	simulateLongProcessingMsg := "Simulate long processing"
 	for j := 1; j <= 5; j++ {
-		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName, j)}
+		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName(), j)}
 		suffix := ""
 		if j == 5 {
 			suffix = " - " + simulateLongProcessingMsg
 		}
-		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d%s", channels[2].ChannelName, j, suffix)}
+		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d%s", channels[2].ChannelName(), j, suffix)}
 	}
 
 	waitForMessagesFromPriority2Chan := make(chan struct{})
@@ -166,12 +138,12 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {
-		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName, j)}
-		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[2].ChannelName, j)}
+		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName(), j)}
+		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[2].ChannelName(), j)}
 	}
-	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName, 1)}
-	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName, 2)}
-	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName, 3)}
+	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName(), 1)}
+	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName(), 2)}
+	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName(), 3)}
 	waitForMessagesFromPriority2Chan <- struct{}{}
 
 	time.Sleep(3 * time.Second)

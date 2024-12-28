@@ -118,51 +118,43 @@ func getPriorityChannelByUsagePattern(
 
 	case HighestPriorityAlwaysFirst:
 		channelsWithPriority := []priority_channels.ChannelWithPriority[string]{
-			{
-				ChannelName: "Paying Customer - High Priority",
-				MsgsC:       payingCustomerHighPriorityC,
-				Priority:    10,
-			},
-			{
-				ChannelName: "Paying Customer - Low Priority",
-				MsgsC:       payingCustomerLowPriorityC,
-				Priority:    6,
-			},
-			{
-				ChannelName: "Free User - High Priority",
-				MsgsC:       freeUserHighPriorityC,
-				Priority:    5,
-			},
-			{
-				ChannelName: "Free User - Low Priority",
-				MsgsC:       freeUserLowPriorityC,
-				Priority:    1,
-			},
+			priority_channels.NewChannelWithPriority(
+				"Paying Customer - High Priority",
+				payingCustomerHighPriorityC,
+				10),
+			priority_channels.NewChannelWithPriority(
+				"Paying Customer - Low Priority",
+				payingCustomerLowPriorityC,
+				6),
+			priority_channels.NewChannelWithPriority(
+				"Free User - High Priority",
+				freeUserHighPriorityC,
+				5),
+			priority_channels.NewChannelWithPriority(
+				"Free User - Low Priority",
+				freeUserLowPriorityC,
+				1),
 		}
 		return priority_channels.NewWithHighestAlwaysFirst[string](channelsWithPriority)
 
 	case FrequencyRatioForAll:
 		channelsWithFrequencyRatio := []priority_channels.ChannelFreqRatio[string]{
-			{
-				ChannelName: "Paying Customer - High Priority",
-				MsgsC:       payingCustomerHighPriorityC,
-				FreqRatio:   50,
-			},
-			{
-				ChannelName: "Paying Customer - Low Priority",
-				MsgsC:       payingCustomerLowPriorityC,
-				FreqRatio:   10,
-			},
-			{
-				ChannelName: "Free User - High Priority",
-				MsgsC:       freeUserHighPriorityC,
-				FreqRatio:   5,
-			},
-			{
-				ChannelName: "Free User - Low Priority",
-				MsgsC:       freeUserLowPriorityC,
-				FreqRatio:   1,
-			},
+			priority_channels.NewChannelWithFreqRatio(
+				"Paying Customer - High Priority",
+				payingCustomerHighPriorityC,
+				50),
+			priority_channels.NewChannelWithFreqRatio(
+				"Paying Customer - Low Priority",
+				payingCustomerLowPriorityC,
+				10),
+			priority_channels.NewChannelWithFreqRatio(
+				"Free User - High Priority",
+				freeUserHighPriorityC,
+				5),
+			priority_channels.NewChannelWithFreqRatio(
+				"Free User - Low Priority",
+				freeUserLowPriorityC,
+				1),
 		}
 		return priority_channels.NewWithFrequencyRatio[string](channelsWithFrequencyRatio)
 
@@ -170,31 +162,27 @@ func getPriorityChannelByUsagePattern(
 		channelsWithPriority := []channel_groups.PriorityChannelGroupWithFreqRatio[string]{
 			{
 				ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
-					{
-						ChannelName: "Paying Customer - High Priority",
-						MsgsC:       payingCustomerHighPriorityC,
-						FreqRatio:   5,
-					},
-					{
-						ChannelName: "Paying Customer - Low Priority",
-						MsgsC:       payingCustomerLowPriorityC,
-						FreqRatio:   1,
-					},
+					priority_channels.NewChannelWithFreqRatio(
+						"Paying Customer - High Priority",
+						payingCustomerHighPriorityC,
+						5),
+					priority_channels.NewChannelWithFreqRatio(
+						"Paying Customer - Low Priority",
+						payingCustomerLowPriorityC,
+						1),
 				},
 				Priority: 10,
 			},
 			{
 				ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
-					{
-						ChannelName: "Free User - High Priority",
-						MsgsC:       freeUserHighPriorityC,
-						FreqRatio:   5,
-					},
-					{
-						ChannelName: "Free User - Low Priority",
-						MsgsC:       freeUserLowPriorityC,
-						FreqRatio:   1,
-					},
+					priority_channels.NewChannelWithFreqRatio(
+						"Free User - High Priority",
+						freeUserHighPriorityC,
+						5),
+					priority_channels.NewChannelWithFreqRatio(
+						"Free User - Low Priority",
+						freeUserLowPriorityC,
+						1),
 				},
 				Priority: 1,
 			},
@@ -205,31 +193,27 @@ func getPriorityChannelByUsagePattern(
 		channelsWithFreqRatio := []channel_groups.ChannelGroupWithHighestPriorityFirst[string]{
 			{
 				ChannelsWithPriority: []priority_channels.ChannelWithPriority[string]{
-					{
-						ChannelName: "Paying Customer - High Priority",
-						MsgsC:       payingCustomerHighPriorityC,
-						Priority:    5,
-					},
-					{
-						ChannelName: "Paying Customer - Low Priority",
-						MsgsC:       payingCustomerLowPriorityC,
-						Priority:    1,
-					},
+					priority_channels.NewChannelWithPriority(
+						"Paying Customer - High Priority",
+						payingCustomerHighPriorityC,
+						5),
+					priority_channels.NewChannelWithPriority(
+						"Paying Customer - Low Priority",
+						payingCustomerLowPriorityC,
+						1),
 				},
 				FreqRatio: 10,
 			},
 			{
 				ChannelsWithPriority: []priority_channels.ChannelWithPriority[string]{
-					{
-						ChannelName: "Free User - High Priority",
-						MsgsC:       freeUserHighPriorityC,
-						Priority:    5,
-					},
-					{
-						ChannelName: "Free User - Low Priority",
-						MsgsC:       freeUserLowPriorityC,
-						Priority:    1,
-					},
+					priority_channels.NewChannelWithPriority(
+						"Free User - High Priority",
+						freeUserHighPriorityC,
+						5),
+					priority_channels.NewChannelWithPriority(
+						"Free User - Low Priority",
+						freeUserLowPriorityC,
+						1),
 				},
 				FreqRatio: 1,
 			},
@@ -240,31 +224,27 @@ func getPriorityChannelByUsagePattern(
 		channelsWithFreqRatio := []channel_groups.FreqRatioChannelGroupWithFreqRatio[string]{
 			{
 				ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
-					{
-						ChannelName: "Paying Customer - High Priority",
-						MsgsC:       payingCustomerHighPriorityC,
-						FreqRatio:   5,
-					},
-					{
-						ChannelName: "Paying Customer - Low Priority",
-						MsgsC:       payingCustomerLowPriorityC,
-						FreqRatio:   1,
-					},
+					priority_channels.NewChannelWithFreqRatio(
+						"Paying Customer - High Priority",
+						payingCustomerHighPriorityC,
+						5),
+					priority_channels.NewChannelWithFreqRatio(
+						"Paying Customer - Low Priority",
+						payingCustomerLowPriorityC,
+						1),
 				},
 				FreqRatio: 10,
 			},
 			{
 				ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
-					{
-						ChannelName: "Free User - High Priority",
-						MsgsC:       freeUserHighPriorityC,
-						FreqRatio:   5,
-					},
-					{
-						ChannelName: "Free User - Low Priority",
-						MsgsC:       freeUserLowPriorityC,
-						FreqRatio:   1,
-					},
+					priority_channels.NewChannelWithFreqRatio(
+						"Free User - High Priority",
+						freeUserHighPriorityC,
+						5),
+					priority_channels.NewChannelWithFreqRatio(
+						"Free User - Low Priority",
+						freeUserLowPriorityC,
+						1),
 				},
 				FreqRatio: 1,
 			},
