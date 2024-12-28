@@ -18,9 +18,9 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	channelsWithFreqRatio := []channel_groups.FreqRatioChannelGroupWithFreqRatio[string]{
+	channelsWithFreqRatio := []channel_groups.PriorityChannelWithFreqRatio[string]{
 		{
-			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
+			PriorityChannel: priority_channels.NewWithFrequencyRatio[string]([]priority_channels.ChannelFreqRatio[string]{
 				priority_channels.NewChannelWithFreqRatio(
 					"Paying Customer - High Priority",
 					payingCustomerHighPriorityC,
@@ -29,11 +29,11 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 					"Paying Customer - Low Priority",
 					payingCustomerLowPriorityC,
 					1),
-			},
+			}),
 			FreqRatio: 10,
 		},
 		{
-			ChannelsWithFreqRatios: []priority_channels.ChannelFreqRatio[string]{
+			PriorityChannel: priority_channels.NewWithFrequencyRatio[string]([]priority_channels.ChannelFreqRatio[string]{
 				priority_channels.NewChannelWithFreqRatio(
 					"Free User - High Priority",
 					freeUserHighPriorityC,
@@ -42,11 +42,11 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 					"Free User - Low Priority",
 					freeUserLowPriorityC,
 					1),
-			},
+			}),
 			FreqRatio: 1,
 		},
 	}
-	ch := channel_groups.NewByFreqRatioAmongFreqRatioChannelGroups[string](ctx, channelsWithFreqRatio)
+	ch := channel_groups.NewByFrequencyRatioAmongPriorityChannels[string](ctx, channelsWithFreqRatio)
 
 	// sending messages to individual channels
 	go func() {
