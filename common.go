@@ -48,3 +48,21 @@ func getZero[T any]() T {
 	var result T
 	return result
 }
+
+func WrapAsPriorityChannel[T any](channelName string, msgsC <-chan T) PriorityChannel[T] {
+	return &wrappedChannel[T]{channelName: channelName, msgsC: msgsC}
+}
+
+type wrappedChannel[T any] struct {
+	channelName string
+	msgsC       <-chan T
+}
+
+func (w *wrappedChannel[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
+	select {
+	case <-ctx.Done():
+		return getZero[T](), "", false
+	case msg, ok = <-w.msgsC:
+		return msg, w.channelName, ok
+	}
+}

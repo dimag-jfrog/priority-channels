@@ -89,7 +89,7 @@ func main() {
 			freeUserLowPriorityC <- fmt.Sprintf("low priority message %d", i)
 		}
 	}()
-	if usagePattern == Combined_FrequencyRatioBetweenUsersAndMessages_PriorityForUrgentMessages {
+	if usagePattern == FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages {
 		go func() {
 			for i := 1; i <= 5; i++ {
 				urgentMessagesC <- fmt.Sprintf("urgent message %d", i)
@@ -229,7 +229,7 @@ func getPriorityChannelByUsagePattern(
 		}
 		return priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
-	case FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessagesForSameUser:
+	case FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
 				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
@@ -260,7 +260,7 @@ func getPriorityChannelByUsagePattern(
 		}
 		return priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
-	case Combined_FrequencyRatioBetweenUsersAndMessages_PriorityForUrgentMessages:
+	case FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
 				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
@@ -296,10 +296,8 @@ func getPriorityChannelByUsagePattern(
 				Priority:        1,
 			},
 			{
-				PriorityChannel: priority_channels.NewByHighestAlwaysFirst([]channels.ChannelWithPriority[string]{
-					channels.NewChannelWithPriority("Urgent Messages", urgentMessagesC, 1),
-				}),
-				Priority: 100,
+				PriorityChannel: priority_channels.WrapAsPriorityChannel("Urgent Messages", urgentMessagesC),
+				Priority:        100,
 			},
 		})
 
