@@ -31,7 +31,7 @@ type noMoreMessagesEvent struct {
 func processPriorityChannelMessages[T any](
 	ctx context.Context,
 	msgReceiver priorityChannelMsgReceiver[T],
-	msgProcessor func(ctx context.Context, msg T, ChannelName string)) ExitReason {
+	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	for {
 		msgReceived, noMoreMessages := msgReceiver.ReceiveSingleMessage(ctx)
 		if noMoreMessages != nil {

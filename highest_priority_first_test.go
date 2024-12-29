@@ -33,7 +33,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
 	msgsChannels[3] <- &Msg{Body: "Priority-1000 Msg-1"}
 
 	var results []*Msg
-	msgProcessor := func(_ context.Context, msg *Msg, ChannelName string) {
+	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		results = append(results, msg)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -127,7 +127,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 
 	waitForMessagesFromPriority2Chan := make(chan struct{})
 	var results []*Msg
-	msgProcessor := func(_ context.Context, msg *Msg, ChannelName string) {
+	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		if strings.HasSuffix(msg.Body, simulateLongProcessingMsg) {
 			<-waitForMessagesFromPriority2Chan
 		}

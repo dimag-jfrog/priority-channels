@@ -64,7 +64,7 @@ func newPriorityChannelByFrequencyRatio[T any](
 func ProcessMessagesByFrequencyRatio[T any](
 	ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, ChannelName string)) ExitReason {
+	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	pq := newPriorityChannelByFrequencyRatio(channelsWithFreqRatios)
 	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
 }
