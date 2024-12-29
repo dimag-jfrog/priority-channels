@@ -41,12 +41,12 @@ const (
 	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser
 	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser
 	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessagesForSameUser
-	FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages
+	PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes
 )
 
 func main() {
 	usagePattern := HighestPriorityAlwaysFirst
-
+	
 	ctx, cancel := context.WithCancel(context.Background())
 
 	payingCustomerHighPriorityC := make(chan string)
@@ -89,7 +89,7 @@ func main() {
 			freeUserLowPriorityC <- fmt.Sprintf("low priority message %d", i)
 		}
 	}()
-	if usagePattern == FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages {
+	if usagePattern == PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes {
 		go func() {
 			for i := 1; i <= 5; i++ {
 				urgentMessagesC <- fmt.Sprintf("urgent message %d", i)
@@ -115,7 +115,7 @@ func main() {
 
 func getPriorityChannelByUsagePattern(
 	ctx context.Context,
-	usage UsagePattern,
+	usagePattern UsagePattern,
 	payingCustomerHighPriorityC chan string,
 	payingCustomerLowPriorityC chan string,
 	freeUserHighPriorityC chan string,
@@ -123,7 +123,7 @@ func getPriorityChannelByUsagePattern(
 	urgentMessagesC chan string,
 ) priority_channels.PriorityChannel[string] {
 
-	switch usage {
+	switch usagePattern {
 
 	case HighestPriorityAlwaysFirst:
 		channelsWithPriority := []channels.ChannelWithPriority[string]{
@@ -260,7 +260,7 @@ func getPriorityChannelByUsagePattern(
 		}
 		return priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
-	case FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages:
+	case PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
 				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{

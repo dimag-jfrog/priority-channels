@@ -19,16 +19,16 @@ const (
 	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser
 	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser
 	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser
-	FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages
+	PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes
 )
 
 var usagePatternNames = map[UsagePattern]string{
 	HighestPriorityAlwaysFirst: "Highest Priority Always First",
 	FrequencyRatioForAll:       "Frequency Ratio For All",
-	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser:        "Paying Customer Always First, No Starvation Of Low Messages For Same User",
-	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser:     "No Starvation Of Free User, High Priority Messages Always First For Same User",
-	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser: "Frequency Ratio Between Users And Frequency Ratio Between Message Types For Same User",
-	FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages:  "Frequency Ratio Between Users And Between Message Types, Priority For Urgent Messages",
+	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser:            "Paying Customer Always First, No Starvation Of Low Messages For Same User",
+	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser:         "No Starvation Of Free User, High Priority Messages Always First For Same User",
+	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser:     "Frequency Ratio Between Users And Frequency Ratio Between Message Types For Same User",
+	PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes: "Priority For Urgent Messages, Frequency Ratio Between Users And Other Message Types",
 }
 
 func TestAll(t *testing.T) {
@@ -38,7 +38,7 @@ func TestAll(t *testing.T) {
 		PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser,
 		NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser,
 		FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser,
-		FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages,
+		PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes,
 	}
 	for _, usagePattern := range usagePatterns {
 		t.Run(usagePatternNames[usagePattern], func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestAll(t *testing.T) {
 	}
 }
 
-func testExample(t *testing.T, pattern UsagePattern) {
+func testExample(t *testing.T, usagePattern UsagePattern) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	payingCustomerHighPriorityC := make(chan string)
@@ -63,7 +63,7 @@ func testExample(t *testing.T, pattern UsagePattern) {
 
 	ch := getPriorityChannelByUsagePattern(
 		ctx,
-		pattern,
+		usagePattern,
 		payingCustomerHighPriorityC,
 		payingCustomerLowPriorityC,
 		freeUserHighPriorityC,
@@ -95,7 +95,7 @@ func testExample(t *testing.T, pattern UsagePattern) {
 			freeUserLowPriorityC <- fmt.Sprintf("low priority message %d", i)
 		}
 	}()
-	if pattern == FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages {
+	if usagePattern == PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes {
 		go func() {
 			for i := 1; i <= 5; i++ {
 				urgentMessagesC <- fmt.Sprintf("urgent message %d", i)
@@ -121,7 +121,7 @@ func testExample(t *testing.T, pattern UsagePattern) {
 
 func getPriorityChannelByUsagePattern(
 	ctx context.Context,
-	usage UsagePattern,
+	usagePattern UsagePattern,
 	payingCustomerHighPriorityC chan string,
 	payingCustomerLowPriorityC chan string,
 	freeUserHighPriorityC chan string,
@@ -129,7 +129,7 @@ func getPriorityChannelByUsagePattern(
 	urgentMessagesC chan string,
 ) priority_channels.PriorityChannel[string] {
 
-	switch usage {
+	switch usagePattern {
 
 	case HighestPriorityAlwaysFirst:
 		channelsWithPriority := []channels.ChannelWithPriority[string]{
@@ -266,7 +266,7 @@ func getPriorityChannelByUsagePattern(
 		}
 		return priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
-	case FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages:
+	case PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
 				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
