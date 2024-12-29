@@ -296,6 +296,7 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		combinedUsersAndMessageTypesPriorityChannel := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+
 		return priority_channel_groups.CombineByHighestPriorityFirst[string](ctx, []priority_channel_groups.PriorityChannelWithPriority[string]{
 			{
 				PriorityChannel: combinedUsersAndMessageTypesPriorityChannel,

@@ -35,7 +35,7 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 	return res
 }
 
-func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
+func ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst[T any](
 	ctx context.Context,
 	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) priority_channels.ExitReason {

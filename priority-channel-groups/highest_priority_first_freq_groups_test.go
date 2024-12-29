@@ -60,7 +60,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go priority_channel_groups.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
@@ -167,7 +167,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go priority_channel_groups.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {
