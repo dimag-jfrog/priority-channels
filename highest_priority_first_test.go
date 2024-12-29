@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pc "github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
 func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
@@ -17,11 +18,11 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []pc.ChannelWithPriority[*Msg]{
-		pc.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
-		pc.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
-		pc.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
-		pc.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
+	channels := []channels.ChannelWithPriority[*Msg]{
+		channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
+		channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
+		channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
 	}
 
 	for i := 0; i <= 2; i++ {
@@ -108,10 +109,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 	msgsChannels[1] = make(chan *Msg, 7)
 	msgsChannels[2] = make(chan *Msg, 7)
 
-	channels := []pc.ChannelWithPriority[*Msg]{
-		pc.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
-		pc.NewChannelWithPriority("Priority-2", msgsChannels[1], 2),
-		pc.NewChannelWithPriority("Priority-3", msgsChannels[2], 3),
+	channels := []channels.ChannelWithPriority[*Msg]{
+		channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithPriority("Priority-2", msgsChannels[1], 2),
+		channels.NewChannelWithPriority("Priority-3", msgsChannels[2], 3),
 	}
 
 	simulateLongProcessingMsg := "Simulate long processing"

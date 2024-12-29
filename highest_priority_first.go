@@ -5,9 +5,11 @@ import (
 	"reflect"
 	"sort"
 	"time"
+
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewWithHighestAlwaysFirst[T any](channelsWithPriorities []ChannelWithPriority[T]) PriorityChannel[T] {
+func NewByHighestAlwaysFirst[T any](channelsWithPriorities []channels.ChannelWithPriority[T]) PriorityChannel[T] {
 	return newPriorityChannelByPriority[T](channelsWithPriorities)
 }
 
@@ -19,54 +21,21 @@ func (pc *priorityChannelsHighestFirst[T]) Receive(ctx context.Context) (msg T, 
 	return msgReceived.Msg, msgReceived.ChannelName, true
 }
 
-type channelWithPriority[T any] struct {
-	channelName string
-	msgsC       <-chan T
-	priority    int
-}
-
-func (c *channelWithPriority[T]) ChannelName() string {
-	return c.channelName
-}
-
-func (c *channelWithPriority[T]) MsgsC() <-chan T {
-	return c.msgsC
-}
-
-func (c *channelWithPriority[T]) Priority() int {
-	return c.priority
-}
-
-func NewChannelWithPriority[T any](channelName string, msgsC <-chan T, priority int) ChannelWithPriority[T] {
-	return &channelWithPriority[T]{
-		channelName: channelName,
-		msgsC:       msgsC,
-		priority:    priority,
-	}
-}
-
-type ChannelWithPriority[T any] interface {
-	ChannelName() string
-	MsgsC() <-chan T
-	Priority() int
-}
-
 type priorityChannelsHighestFirst[T any] struct {
-	channels []ChannelWithPriority[T]
+	channels []channels.ChannelWithPriority[T]
 }
 
 func newPriorityChannelByPriority[T any](
-	channelsWithPriorities []ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
+	channelsWithPriorities []channels.ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
 	pq := &priorityChannelsHighestFirst[T]{
-		channels: make([]ChannelWithPriority[T], 0, len(channelsWithPriorities)),
+		channels: make([]channels.ChannelWithPriority[T], 0, len(channelsWithPriorities)),
 	}
 
 	for _, q := range channelsWithPriorities {
-		pq.channels = append(pq.channels, &channelWithPriority[T]{
-			channelName: q.ChannelName(),
-			msgsC:       q.MsgsC(),
-			priority:    q.Priority(),
-		})
+		pq.channels = append(pq.channels, channels.NewChannelWithPriority[T](
+			q.ChannelName(),
+			q.MsgsC(),
+			q.Priority()))
 	}
 	sort.Slice(pq.channels, func(i int, j int) bool {
 		return pq.channels[i].Priority() > pq.channels[j].Priority()
@@ -76,7 +45,7 @@ func newPriorityChannelByPriority[T any](
 
 func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
 	ctx context.Context,
-	channelsWithPriorities []ChannelWithPriority[T],
+	channelsWithPriorities []channels.ChannelWithPriority[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	pq := newPriorityChannelByPriority(channelsWithPriorities)
 	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)

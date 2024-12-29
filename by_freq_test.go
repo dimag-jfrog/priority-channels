@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pc "github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
 type Msg struct {
@@ -21,11 +22,11 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []pc.ChannelFreqRatio[*Msg]{
-		pc.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
-		pc.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
-		pc.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 10),
-		pc.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1000),
+	channels := []channels.ChannelFreqRatio[*Msg]{
+		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
+		channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 10),
+		channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1000),
 	}
 
 	for i := 0; i <= 2; i++ {
@@ -112,10 +113,10 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 	msgsChannels[1] = make(chan *Msg, 7)
 	msgsChannels[2] = make(chan *Msg, 7)
 
-	channels := []pc.ChannelFreqRatio[*Msg]{
-		pc.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
-		pc.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
-		pc.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 3),
+	channels := []channels.ChannelFreqRatio[*Msg]{
+		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
+		channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 3),
 	}
 
 	simulateLongProcessingMsg := "Simulate long processing"

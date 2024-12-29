@@ -1,16 +1,18 @@
-package channel_groups
+package priority_channel_groups
 
 import (
 	"context"
-	"github.com/dimag-jfrog/priority-channels"
 	"sort"
+
+	"github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewByFrequencyRatioAmongPriorityChannels[T any](ctx context.Context, priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T]) priority_channels.PriorityChannel[T] {
+func CombineByFrequencyRatio[T any](ctx context.Context, priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T]) priority_channels.PriorityChannel[T] {
 	channels := newPriorityChannelsGroupByFreqRatio[T](ctx, priorityChannelsWithFreqRatio)
 	return &priorityChannelOfMsgsWithChannelName[T]{
 		ctx:             ctx,
-		priorityChannel: priority_channels.NewWithFrequencyRatio[msgWithChannelName[T]](channels),
+		priorityChannel: priority_channels.NewByFrequencyRatio[msgWithChannelName[T]](channels),
 	}
 }
 
@@ -21,12 +23,12 @@ type PriorityChannelWithFreqRatio[T any] struct {
 
 func newPriorityChannelsGroupByFreqRatio[T any](
 	ctx context.Context,
-	priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T]) []priority_channels.ChannelFreqRatio[msgWithChannelName[T]] {
-	res := make([]priority_channels.ChannelFreqRatio[msgWithChannelName[T]], 0, len(priorityChannelsWithFreqRatio))
+	priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T]) []channels.ChannelFreqRatio[msgWithChannelName[T]] {
+	res := make([]channels.ChannelFreqRatio[msgWithChannelName[T]], 0, len(priorityChannelsWithFreqRatio))
 
 	for _, q := range priorityChannelsWithFreqRatio {
 		msgWithNameC := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
-		res = append(res, priority_channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", msgWithNameC, q.FreqRatio))
+		res = append(res, channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", msgWithNameC, q.FreqRatio))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].FreqRatio() > res[j].FreqRatio()

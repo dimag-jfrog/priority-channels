@@ -1,7 +1,8 @@
-package channel_groups
+package priority_channel_groups
 
 import (
 	"context"
+
 	priority_channels "github.com/dimag-jfrog/priority-channels"
 )
 

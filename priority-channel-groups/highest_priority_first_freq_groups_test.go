@@ -1,4 +1,4 @@
-package channel_groups_test
+package priority_channel_groups_test
 
 import (
 	"context"
@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/dimag-jfrog/priority-channels"
-	"github.com/dimag-jfrog/priority-channels/channel-groups"
+	"github.com/dimag-jfrog/priority-channels/channels"
+	"github.com/dimag-jfrog/priority-channels/priority-channel-groups"
 )
 
 type Msg struct {
@@ -22,23 +23,23 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []channel_groups.PriorityChannelWithPriority[*Msg]{
+	channels := []priority_channel_groups.PriorityChannelWithPriority[*Msg]{
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[*Msg]([]priority_channels.ChannelFreqRatio[*Msg]{
-				priority_channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
-				priority_channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+				channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+				channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
 			}),
 			Priority: 1,
 		},
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[*Msg]([]priority_channels.ChannelFreqRatio[*Msg]{
-				priority_channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 1),
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+				channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 1),
 			}),
 			Priority: 10,
 		},
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[*Msg]([]priority_channels.ChannelFreqRatio[*Msg]{
-				priority_channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1),
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+				channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1),
 			}),
 			Priority: 1000,
 		},
@@ -59,7 +60,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go channel_groups.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
@@ -130,17 +131,17 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 	msgsChannels[1] = make(chan *Msg, 7)
 	msgsChannels[2] = make(chan *Msg, 7)
 
-	channels := []channel_groups.PriorityChannelWithPriority[*Msg]{
+	channels := []priority_channel_groups.PriorityChannelWithPriority[*Msg]{
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[*Msg]([]priority_channels.ChannelFreqRatio[*Msg]{
-				priority_channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
-				priority_channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+				channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+				channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
 			}),
 			Priority: 1,
 		},
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[*Msg]([]priority_channels.ChannelFreqRatio[*Msg]{
-				priority_channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 1),
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+				channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 1),
 			}),
 			Priority: 2,
 		},
@@ -166,7 +167,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go channel_groups.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {

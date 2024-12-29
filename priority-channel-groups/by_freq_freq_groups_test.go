@@ -1,4 +1,4 @@
-package channel_groups_test
+package priority_channel_groups_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/dimag-jfrog/priority-channels"
-	"github.com/dimag-jfrog/priority-channels/channel-groups"
+	"github.com/dimag-jfrog/priority-channels/channels"
+	"github.com/dimag-jfrog/priority-channels/priority-channel-groups"
 )
 
 func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
@@ -18,14 +19,14 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	channelsWithFreqRatio := []channel_groups.PriorityChannelWithFreqRatio[string]{
+	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[string]([]priority_channels.ChannelFreqRatio[string]{
-				priority_channels.NewChannelWithFreqRatio(
+			PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
 					"Paying Customer - High Priority",
 					payingCustomerHighPriorityC,
 					5),
-				priority_channels.NewChannelWithFreqRatio(
+				channels.NewChannelWithFreqRatio(
 					"Paying Customer - Low Priority",
 					payingCustomerLowPriorityC,
 					1),
@@ -33,12 +34,12 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 			FreqRatio: 10,
 		},
 		{
-			PriorityChannel: priority_channels.NewWithFrequencyRatio[string]([]priority_channels.ChannelFreqRatio[string]{
-				priority_channels.NewChannelWithFreqRatio(
+			PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
 					"Free User - High Priority",
 					freeUserHighPriorityC,
 					5),
-				priority_channels.NewChannelWithFreqRatio(
+				channels.NewChannelWithFreqRatio(
 					"Free User - Low Priority",
 					freeUserLowPriorityC,
 					1),
@@ -46,7 +47,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 			FreqRatio: 1,
 		},
 	}
-	ch := channel_groups.NewByFrequencyRatioAmongPriorityChannels[string](ctx, channelsWithFreqRatio)
+	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
 	// sending messages to individual channels
 	go func() {

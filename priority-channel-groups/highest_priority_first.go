@@ -1,16 +1,18 @@
-package channel_groups
+package priority_channel_groups
 
 import (
 	"context"
-	"github.com/dimag-jfrog/priority-channels"
 	"sort"
+
+	"github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewByHighestPriorityFirstAmongPriorityChannels[T any](ctx context.Context, priorityChannelsWithPriority []PriorityChannelWithPriority[T]) priority_channels.PriorityChannel[T] {
+func CombineByHighestPriorityFirst[T any](ctx context.Context, priorityChannelsWithPriority []PriorityChannelWithPriority[T]) priority_channels.PriorityChannel[T] {
 	channels := newPriorityChannelsGroupByHighestPriorityFirst[T](ctx, priorityChannelsWithPriority)
 	return &priorityChannelOfMsgsWithChannelName[T]{
 		ctx:             ctx,
-		priorityChannel: priority_channels.NewWithHighestAlwaysFirst[msgWithChannelName[T]](channels),
+		priorityChannel: priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](channels),
 	}
 }
 
@@ -21,12 +23,12 @@ type PriorityChannelWithPriority[T any] struct {
 
 func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 	ctx context.Context,
-	priorityChannelsWithPriority []PriorityChannelWithPriority[T]) []priority_channels.ChannelWithPriority[msgWithChannelName[T]] {
-	res := make([]priority_channels.ChannelWithPriority[msgWithChannelName[T]], 0, len(priorityChannelsWithPriority))
+	priorityChannelsWithPriority []PriorityChannelWithPriority[T]) []channels.ChannelWithPriority[msgWithChannelName[T]] {
+	res := make([]channels.ChannelWithPriority[msgWithChannelName[T]], 0, len(priorityChannelsWithPriority))
 
 	for _, q := range priorityChannelsWithPriority {
 		msgWithNameC := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
-		res = append(res, priority_channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority))
+		res = append(res, channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].Priority() > res[j].Priority()

@@ -1,4 +1,4 @@
-package channel_groups_test
+package priority_channel_groups_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/dimag-jfrog/priority-channels"
-	"github.com/dimag-jfrog/priority-channels/channel-groups"
+	"github.com/dimag-jfrog/priority-channels/channels"
+	"github.com/dimag-jfrog/priority-channels/priority-channel-groups"
 )
 
 func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) {
@@ -17,23 +18,23 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []channel_groups.PriorityChannelWithFreqRatio[*Msg]{
+	channels := []priority_channel_groups.PriorityChannelWithFreqRatio[*Msg]{
 		{
-			PriorityChannel: priority_channels.NewWithHighestAlwaysFirst[*Msg]([]priority_channels.ChannelWithPriority[*Msg]{
-				priority_channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
-				priority_channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+				channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+				channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
 			}),
 			FreqRatio: 1,
 		},
 		{
-			PriorityChannel: priority_channels.NewWithHighestAlwaysFirst[*Msg]([]priority_channels.ChannelWithPriority[*Msg]{
-				priority_channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+				channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
 			}),
 			FreqRatio: 5,
 		},
 		{
-			PriorityChannel: priority_channels.NewWithHighestAlwaysFirst[*Msg]([]priority_channels.ChannelWithPriority[*Msg]{
-				priority_channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+				channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
 			}),
 			FreqRatio: 10,
 		},
@@ -54,7 +55,7 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
