@@ -41,7 +41,7 @@ const (
 	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser
 	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser
 	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessagesForSameUser
-	Combined_FrequencyRatioBetweenUsersAndMessages_PriorityForUrgentMessages
+	FrequencyRatioBetweenUsersAndMessagesTypes_PriorityForUrgentMessages
 )
 
 func main() {
