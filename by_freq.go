@@ -5,7 +5,21 @@ import (
 	"reflect"
 	"sort"
 	"time"
+
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
+
+func NewByFrequencyRatio[T any](channelsWithFreqRatios []channels.ChannelFreqRatio[T]) PriorityChannel[T] {
+	return newPriorityChannelByFrequencyRatio[T](channelsWithFreqRatios)
+}
+
+func (pc *priorityChannelsByFreq[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
+	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
+	if noMoreMessages != nil {
+		return getZero[T](), "", false
+	}
+	return msgReceived.Msg, msgReceived.ChannelName, true
+}
 
 type priorityBucket[T any] struct {
 	ChannelName string
@@ -25,24 +39,18 @@ type priorityChannelsByFreq[T any] struct {
 	totalBuckets int
 }
 
-type ChannelFreqRatio[T any] struct {
-	ChannelName string
-	MsgsC       <-chan T
-	FreqRatio   int
-}
-
 func newPriorityChannelByFrequencyRatio[T any](
-	channelsWithFreqRatios []ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
+	channelsWithFreqRatios []channels.ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
 	zeroLevel := &level[T]{}
 	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(channelsWithFreqRatios))
 	for _, q := range channelsWithFreqRatios {
 		zeroLevel.Buckets = append(zeroLevel.Buckets, &priorityBucket[T]{
 			Value:       0,
-			Capacity:    q.FreqRatio,
-			MsgsC:       q.MsgsC,
-			ChannelName: q.ChannelName,
+			Capacity:    q.FreqRatio(),
+			MsgsC:       q.MsgsC(),
+			ChannelName: q.ChannelName(),
 		})
-		zeroLevel.TotalCapacity += q.FreqRatio
+		zeroLevel.TotalCapacity += q.FreqRatio()
 	}
 	sort.Slice(zeroLevel.Buckets, func(i int, j int) bool {
 		return zeroLevel.Buckets[i].Capacity > zeroLevel.Buckets[j].Capacity
@@ -55,8 +63,8 @@ func newPriorityChannelByFrequencyRatio[T any](
 
 func ProcessMessagesByFrequencyRatio[T any](
 	ctx context.Context,
-	channelsWithFreqRatios []ChannelFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, ChannelName string)) ExitReason {
+	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	pq := newPriorityChannelByFrequencyRatio(channelsWithFreqRatios)
 	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
 }

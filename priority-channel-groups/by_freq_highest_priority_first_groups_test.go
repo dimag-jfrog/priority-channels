@@ -1,4 +1,4 @@
-package channel_groups_test
+package priority_channel_groups_test
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/dimag-jfrog/priority-channels"
-	"github.com/dimag-jfrog/priority-channels/channel-groups"
+	"github.com/dimag-jfrog/priority-channels/channels"
+	"github.com/dimag-jfrog/priority-channels/priority-channel-groups"
 )
 
 func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) {
@@ -17,40 +18,24 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []channel_groups.ChannelGroupWithHighestPriorityFirst[*Msg]{
+	channels := []priority_channel_groups.PriorityChannelWithFreqRatio[*Msg]{
 		{
-			ChannelsWithPriority: []priority_channels.ChannelWithPriority[*Msg]{
-				{
-					ChannelName: "Priority-1",
-					MsgsC:       msgsChannels[0],
-					Priority:    1,
-				},
-				{
-					ChannelName: "Priority-5",
-					MsgsC:       msgsChannels[1],
-					Priority:    5,
-				},
-			},
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+				channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+				channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
+			}),
 			FreqRatio: 1,
 		},
 		{
-			ChannelsWithPriority: []priority_channels.ChannelWithPriority[*Msg]{
-				{
-					ChannelName: "Priority-10",
-					MsgsC:       msgsChannels[2],
-					Priority:    10,
-				},
-			},
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+				channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
+			}),
 			FreqRatio: 5,
 		},
 		{
-			ChannelsWithPriority: []priority_channels.ChannelWithPriority[*Msg]{
-				{
-					ChannelName: "Priority-1000",
-					MsgsC:       msgsChannels[3],
-					Priority:    1000,
-				},
-			},
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+				channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
+			}),
 			FreqRatio: 10,
 		},
 	}
@@ -65,12 +50,12 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	msgsChannels[3] <- &Msg{Body: "Priority-1000 Msg-1"}
 
 	var results []*Msg
-	msgProcessor := func(_ context.Context, msg *Msg, ChannelName string) {
+	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		results = append(results, msg)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go channel_groups.ProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()

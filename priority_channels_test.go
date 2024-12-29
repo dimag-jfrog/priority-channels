@@ -1,31 +1,9 @@
-# priority-channels
-Process Go channels by priority. 
-
-
-The following use cases are supported:
-
-Main use cases:
-- **Highest priority always first** - when we always want to process messages in order of priority
-- **Processing by frequency ratio** - when we want to prevent starvation of lower priority messages
-
-Combinations of main use cases - channel groups:
-- Channel groups by highest priority first inside group and choose among groups by frequency ratio
-- Channel groups by frequency ratio inside group and choose among groups by highest priority first
-- Channel groups by frequency ratio inside group and choose among groups by frequency ratio
-- And so on - any combination of the above
-
-
-## Usage
-
-### Full example
-
-```go
-
-package main
+package priority_channels_test
 
 import (
 	"context"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/dimag-jfrog/priority-channels"
@@ -40,13 +18,41 @@ const (
 	FrequencyRatioForAll
 	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser
 	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser
-	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessagesForSameUser
+	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser
 	PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes
 )
 
-func main() {
-	usagePattern := HighestPriorityAlwaysFirst
-	
+var usagePatternNames = map[UsagePattern]string{
+	HighestPriorityAlwaysFirst: "Highest Priority Always First",
+	FrequencyRatioForAll:       "Frequency Ratio For All",
+	PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser:            "Paying Customer Always First, No Starvation Of Low Messages For Same User",
+	NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser:         "No Starvation Of Free User, High Priority Messages Always First For Same User",
+	FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser:     "Frequency Ratio Between Users And Frequency Ratio Between Message Types For Same User",
+	PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes: "Priority For Urgent Messages, Frequency Ratio Between Users And Other Message Types",
+}
+
+func TestAll(t *testing.T) {
+	usagePatterns := []UsagePattern{
+		HighestPriorityAlwaysFirst,
+		FrequencyRatioForAll,
+		PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser,
+		NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser,
+		FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser,
+		PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes,
+	}
+	for _, usagePattern := range usagePatterns {
+		t.Run(usagePatternNames[usagePattern], func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Recovered from panic: %v", r)
+				}
+			}()
+			testExample(t, usagePattern)
+		})
+	}
+}
+
+func testExample(t *testing.T, usagePattern UsagePattern) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	payingCustomerHighPriorityC := make(chan string)
@@ -290,7 +296,7 @@ func getPriorityChannelByUsagePattern(
 			},
 		}
 		combinedUsersAndMessageTypesPriorityChannel := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
-		
+
 		return priority_channel_groups.CombineByHighestPriorityFirst[string](ctx, []priority_channel_groups.PriorityChannelWithPriority[string]{
 			{
 				PriorityChannel: combinedUsersAndMessageTypesPriorityChannel,
@@ -306,4 +312,3 @@ func getPriorityChannelByUsagePattern(
 		return nil
 	}
 }
-```

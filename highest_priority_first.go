@@ -5,40 +5,47 @@ import (
 	"reflect"
 	"sort"
 	"time"
+
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-type ChannelWithPriority[T any] struct {
-	ChannelName string
-	MsgsC       <-chan T
-	Priority    int
+func NewByHighestAlwaysFirst[T any](channelsWithPriorities []channels.ChannelWithPriority[T]) PriorityChannel[T] {
+	return newPriorityChannelByPriority[T](channelsWithPriorities)
+}
+
+func (pc *priorityChannelsHighestFirst[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
+	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
+	if noMoreMessages != nil {
+		return getZero[T](), "", false
+	}
+	return msgReceived.Msg, msgReceived.ChannelName, true
 }
 
 type priorityChannelsHighestFirst[T any] struct {
-	channels []*ChannelWithPriority[T]
+	channels []channels.ChannelWithPriority[T]
 }
 
 func newPriorityChannelByPriority[T any](
-	channelsWithPriorities []ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
+	channelsWithPriorities []channels.ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
 	pq := &priorityChannelsHighestFirst[T]{
-		channels: make([]*ChannelWithPriority[T], 0, len(channelsWithPriorities)),
+		channels: make([]channels.ChannelWithPriority[T], 0, len(channelsWithPriorities)),
 	}
 
 	for _, q := range channelsWithPriorities {
-		pq.channels = append(pq.channels, &ChannelWithPriority[T]{
-			ChannelName: q.ChannelName,
-			MsgsC:       q.MsgsC,
-			Priority:    q.Priority,
-		})
+		pq.channels = append(pq.channels, channels.NewChannelWithPriority[T](
+			q.ChannelName(),
+			q.MsgsC(),
+			q.Priority()))
 	}
 	sort.Slice(pq.channels, func(i int, j int) bool {
-		return pq.channels[i].Priority > pq.channels[j].Priority
+		return pq.channels[i].Priority() > pq.channels[j].Priority()
 	})
 	return pq
 }
 
 func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
 	ctx context.Context,
-	channelsWithPriorities []ChannelWithPriority[T],
+	channelsWithPriorities []channels.ChannelWithPriority[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	pq := newPriorityChannelByPriority(channelsWithPriorities)
 	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
@@ -64,7 +71,7 @@ func (pc *priorityChannelsHighestFirst[T]) ReceiveSingleMessage(ctx context.Cont
 		}
 		// Message received successfully
 		msg := recv.Interface().(T)
-		res := &msgReceivedEvent[T]{Msg: msg, ChannelName: pc.channels[chosen-1].ChannelName}
+		res := &msgReceivedEvent[T]{Msg: msg, ChannelName: pc.channels[chosen-1].ChannelName()}
 		return res, nil
 	}
 	return nil, nil
@@ -79,7 +86,7 @@ func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(ctx context.Contex
 	for i := 0; i <= currPriorityChannelIndex; i++ {
 		selectCases = append(selectCases, reflect.SelectCase{
 			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(pc.channels[i].MsgsC),
+			Chan: reflect.ValueOf(pc.channels[i].MsgsC()),
 		})
 	}
 	isLastIteration := currPriorityChannelIndex == len(pc.channels)-1

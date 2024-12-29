@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pc "github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
 type Msg struct {
@@ -21,38 +22,22 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []pc.ChannelFreqRatio[*Msg]{
-		{
-			ChannelName: "Priority-1",
-			MsgsC:       msgsChannels[0],
-			FreqRatio:   1,
-		},
-		{
-			ChannelName: "Priority-5",
-			MsgsC:       msgsChannels[1],
-			FreqRatio:   5,
-		},
-		{
-			ChannelName: "Priority-10",
-			MsgsC:       msgsChannels[2],
-			FreqRatio:   10,
-		},
-		{
-			ChannelName: "Priority-1000",
-			MsgsC:       msgsChannels[3],
-			FreqRatio:   1000,
-		},
+	channels := []channels.ChannelFreqRatio[*Msg]{
+		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
+		channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 10),
+		channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1000),
 	}
 
 	for i := 0; i <= 2; i++ {
 		for j := 1; j <= 15; j++ {
-			msgsChannels[i] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[i].ChannelName, j)}
+			msgsChannels[i] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[i].ChannelName(), j)}
 		}
 	}
 	msgsChannels[3] <- &Msg{Body: "Priority-1000 Msg-1"}
 
 	var results []*Msg
-	msgProcessor := func(_ context.Context, msg *Msg, ChannelName string) {
+	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		results = append(results, msg)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,37 +113,25 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 	msgsChannels[1] = make(chan *Msg, 7)
 	msgsChannels[2] = make(chan *Msg, 7)
 
-	channels := []pc.ChannelFreqRatio[*Msg]{
-		{
-			ChannelName: "Priority-1",
-			MsgsC:       msgsChannels[0],
-			FreqRatio:   1,
-		},
-		{
-			ChannelName: "Priority-2",
-			MsgsC:       msgsChannels[1],
-			FreqRatio:   2,
-		},
-		{
-			ChannelName: "Priority-3",
-			MsgsC:       msgsChannels[2],
-			FreqRatio:   3,
-		},
+	channels := []channels.ChannelFreqRatio[*Msg]{
+		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
+		channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 3),
 	}
 
 	simulateLongProcessingMsg := "Simulate long processing"
 	for j := 1; j <= 5; j++ {
-		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName, j)}
+		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName(), j)}
 		suffix := ""
 		if j == 5 {
 			suffix = " - " + simulateLongProcessingMsg
 		}
-		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d%s", channels[2].ChannelName, j, suffix)}
+		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d%s", channels[2].ChannelName(), j, suffix)}
 	}
 
 	waitForMessagesFromPriority2Chan := make(chan struct{})
 	var results []*Msg
-	msgProcessor := func(_ context.Context, msg *Msg, ChannelName string) {
+	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		if strings.HasSuffix(msg.Body, simulateLongProcessingMsg) {
 			<-waitForMessagesFromPriority2Chan
 		}
@@ -170,12 +143,12 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {
-		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName, j)}
-		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[2].ChannelName, j)}
+		msgsChannels[0] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[0].ChannelName(), j)}
+		msgsChannels[2] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[2].ChannelName(), j)}
 	}
-	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName, 1)}
-	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName, 2)}
-	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName, 3)}
+	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName(), 1)}
+	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName(), 2)}
+	msgsChannels[1] <- &Msg{Body: fmt.Sprintf("%s Msg-%d", channels[1].ChannelName(), 3)}
 	waitForMessagesFromPriority2Chan <- struct{}{}
 
 	time.Sleep(3 * time.Second)
