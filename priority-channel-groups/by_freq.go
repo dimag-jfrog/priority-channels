@@ -11,7 +11,6 @@ import (
 func CombineByFrequencyRatio[T any](ctx context.Context, priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T]) priority_channels.PriorityChannel[T] {
 	channels := newPriorityChannelsGroupByFreqRatio[T](ctx, priorityChannelsWithFreqRatio)
 	return &priorityChannelOfMsgsWithChannelName[T]{
-		ctx:             ctx,
 		priorityChannel: priority_channels.NewByFrequencyRatio[msgWithChannelName[T]](channels),
 	}
 }

@@ -12,7 +12,6 @@ type msgWithChannelName[T any] struct {
 }
 
 type priorityChannelOfMsgsWithChannelName[T any] struct {
-	ctx             context.Context
 	priorityChannel priority_channels.PriorityChannel[msgWithChannelName[T]]
 }
 

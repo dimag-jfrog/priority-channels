@@ -11,7 +11,6 @@ import (
 func CombineByHighestPriorityFirst[T any](ctx context.Context, priorityChannelsWithPriority []PriorityChannelWithPriority[T]) priority_channels.PriorityChannel[T] {
 	channels := newPriorityChannelsGroupByHighestPriorityFirst[T](ctx, priorityChannelsWithPriority)
 	return &priorityChannelOfMsgsWithChannelName[T]{
-		ctx:             ctx,
 		priorityChannel: priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](channels),
 	}
 }
