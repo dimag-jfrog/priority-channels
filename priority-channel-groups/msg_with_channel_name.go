@@ -31,7 +31,11 @@ func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, pri
 			if !ok {
 				break
 			}
-			msgWithNameC <- msgWithChannelName[T]{Msg: message, ChannelName: channelName}
+			select {
+			case <-ctx.Done():
+				return
+			case msgWithNameC <- msgWithChannelName[T]{Msg: message, ChannelName: channelName}:
+			}
 		}
 	}()
 	return msgWithNameC
