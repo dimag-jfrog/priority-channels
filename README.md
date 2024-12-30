@@ -242,7 +242,7 @@ nicheProductPayingCustomerLowPriorityC := make(chan string)
 nicheProductFreeUserHighPriorityC := make(chan string)
 nicheProductFreeUserLowPriorityC := make(chan string)
 
-flagshipProductChannelsWithPriority := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
+flagshipProductChannelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
     {
         PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
             channels.NewChannelWithFreqRatio(
@@ -270,9 +270,9 @@ flagshipProductChannelsWithPriority := []priority_channel_groups.PriorityChannel
         FreqRatio: 1,
     },
 }
-flagshipProductChannelGroup := priority_channel_groups.CombineByFrequencyRatio(ctx, flagshipProductChannelsWithPriority)
+flagshipProductChannelGroup := priority_channel_groups.CombineByFrequencyRatio(ctx, flagshipProductChannelsWithFreqRatio)
 
-nicheProductChannelsWithPriority := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
+nicheProductChannelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
     {
         PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
             channels.NewChannelWithFreqRatio(
@@ -300,7 +300,7 @@ nicheProductChannelsWithPriority := []priority_channel_groups.PriorityChannelWit
         FreqRatio: 1,
     },
 }
-nicheProductChannelGroup := priority_channel_groups.CombineByFrequencyRatio(ctx, nicheProductChannelsWithPriority)
+nicheProductChannelGroup := priority_channel_groups.CombineByFrequencyRatio(ctx, nicheProductChannelsWithFreqRatio)
 
 combinedProductsPriorityChannel := priority_channel_groups.CombineByFrequencyRatio(ctx, []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
     {
