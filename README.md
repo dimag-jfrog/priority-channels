@@ -26,18 +26,18 @@ normalC := make(chan string)
 lowPriorityC := make(chan string)
 
 channelsWithPriority := []channels.ChannelWithPriority[string]{
-	channels.NewChannelWithPriority(
-		"Urgent Messages", 
-		urgentC, 
-		10),
     channels.NewChannelWithPriority(
-		"Normal Messages", 
-		normalC, 
-		5), 
+        "Urgent Messages", 
+        urgentC, 
+        10),
     channels.NewChannelWithPriority(
-		"Low Priority Messages", 
-		lowPriorityC,
-		1),
+        "Normal Messages", 
+        normalC, 
+        5),
+    channels.NewChannelWithPriority(
+        "Low Priority Messages", 
+        lowPriorityC,
+        1),
 }
 
 // Two possible usage modes
@@ -68,18 +68,18 @@ normalPriorityC := make(chan string)
 lowPriorityC := make(chan string)
 
 channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
-	channels.NewChannelWithFreqRatio(
-		"High Priority",
-		highPriorityC,
-		10),
     channels.NewChannelWithFreqRatio(
-		"Normal Priority",
-		normalPriorityC,
-		5),
+        "High Priority", 
+        highPriorityC,
+        10),
     channels.NewChannelWithFreqRatio(
-		"Low Priority",
-		lowPriorityC,
-		5),
+        "Normal Priority",
+        normalPriorityC,
+        5),
+    channels.NewChannelWithFreqRatio(
+        "Low Priority", 
+        lowPriorityC,
+        5),
 }
 
 // Two possible usage modes
@@ -111,10 +111,10 @@ freeUserHighPriorityC := make(chan string)
 freeUserLowPriorityC := make(chan string)
 
 priorityChannelsWithPriority := []priority_channel_groups.PriorityChannelWithPriority[string]{
-	{
-		PriorityChannel: priority_channels.WrapAsPriorityChannel("Urgent Messages", urgentMessagesC),
-		Priority:        100,
-	},
+    {
+        PriorityChannel: priority_channels.WrapAsPriorityChannel("Urgent Messages", urgentMessagesC),
+        Priority:        100,
+    },
     {
         PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
             channels.NewChannelWithFreqRatio(
