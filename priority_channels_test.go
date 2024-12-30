@@ -150,7 +150,7 @@ func getPriorityChannelByUsagePattern(
 				freeUserLowPriorityC,
 				1),
 		}
-		return priority_channels.NewByHighestAlwaysFirst[string](channelsWithPriority)
+		return priority_channels.NewByHighestAlwaysFirst(channelsWithPriority)
 
 	case FrequencyRatioForAll:
 		channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
@@ -171,12 +171,12 @@ func getPriorityChannelByUsagePattern(
 				freeUserLowPriorityC,
 				1),
 		}
-		return priority_channels.NewByFrequencyRatio[string](channelsWithFrequencyRatio)
+		return priority_channels.NewByFrequencyRatio(channelsWithFrequencyRatio)
 
 	case PayingCustomerAlwaysFirst_NoStarvationOfLowMessagesForSameUser:
 		channelsWithPriority := []priority_channel_groups.PriorityChannelWithPriority[string]{
 			{
-				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
 					channels.NewChannelWithFreqRatio(
 						"Paying Customer - High Priority",
 						payingCustomerHighPriorityC,
@@ -189,7 +189,7 @@ func getPriorityChannelByUsagePattern(
 				Priority: 10,
 			},
 			{
-				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
 					channels.NewChannelWithFreqRatio(
 						"Free User - High Priority",
 						freeUserHighPriorityC,
@@ -202,12 +202,12 @@ func getPriorityChannelByUsagePattern(
 				Priority: 1,
 			},
 		}
-		return priority_channel_groups.CombineByHighestPriorityFirst[string](ctx, channelsWithPriority)
+		return priority_channel_groups.CombineByHighestPriorityFirst(ctx, channelsWithPriority)
 
 	case NoStarvationOfFreeUser_HighPriorityMessagesAlwaysFirstForSameUser:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
-				PriorityChannel: priority_channels.NewByHighestAlwaysFirst[string]([]channels.ChannelWithPriority[string]{
+				PriorityChannel: priority_channels.NewByHighestAlwaysFirst([]channels.ChannelWithPriority[string]{
 					channels.NewChannelWithPriority(
 						"Paying Customer - High Priority",
 						payingCustomerHighPriorityC,
@@ -220,7 +220,7 @@ func getPriorityChannelByUsagePattern(
 				FreqRatio: 10,
 			},
 			{
-				PriorityChannel: priority_channels.NewByHighestAlwaysFirst[string]([]channels.ChannelWithPriority[string]{
+				PriorityChannel: priority_channels.NewByHighestAlwaysFirst([]channels.ChannelWithPriority[string]{
 					channels.NewChannelWithPriority(
 						"Free User - High Priority",
 						freeUserHighPriorityC,
@@ -233,12 +233,12 @@ func getPriorityChannelByUsagePattern(
 				FreqRatio: 1,
 			},
 		}
-		return priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+		return priority_channel_groups.CombineByFrequencyRatio(ctx, channelsWithFreqRatio)
 
 	case FrequencyRatioBetweenUsers_AndFreqRatioBetweenMessageTypesForSameUser:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
-				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
 					channels.NewChannelWithFreqRatio(
 						"Paying Customer - High Priority",
 						payingCustomerHighPriorityC,
@@ -251,7 +251,7 @@ func getPriorityChannelByUsagePattern(
 				FreqRatio: 10,
 			},
 			{
-				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
 					channels.NewChannelWithFreqRatio(
 						"Free User - High Priority",
 						freeUserHighPriorityC,
@@ -264,12 +264,12 @@ func getPriorityChannelByUsagePattern(
 				FreqRatio: 1,
 			},
 		}
-		return priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+		return priority_channel_groups.CombineByFrequencyRatio(ctx, channelsWithFreqRatio)
 
 	case PriorityForUrgentMessages_FrequencyRatioBetweenUsersAndOtherMessagesTypes:
 		channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 			{
-				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
 					channels.NewChannelWithFreqRatio(
 						"Paying Customer - High Priority",
 						payingCustomerHighPriorityC,
@@ -282,7 +282,7 @@ func getPriorityChannelByUsagePattern(
 				FreqRatio: 10,
 			},
 			{
-				PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+				PriorityChannel: priority_channels.NewByFrequencyRatio([]channels.ChannelFreqRatio[string]{
 					channels.NewChannelWithFreqRatio(
 						"Free User - High Priority",
 						freeUserHighPriorityC,
@@ -295,9 +295,9 @@ func getPriorityChannelByUsagePattern(
 				FreqRatio: 1,
 			},
 		}
-		combinedUsersAndMessageTypesPriorityChannel := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+		combinedUsersAndMessageTypesPriorityChannel := priority_channel_groups.CombineByFrequencyRatio(ctx, channelsWithFreqRatio)
 
-		return priority_channel_groups.CombineByHighestPriorityFirst[string](ctx, []priority_channel_groups.PriorityChannelWithPriority[string]{
+		return priority_channel_groups.CombineByHighestPriorityFirst(ctx, []priority_channel_groups.PriorityChannelWithPriority[string]{
 			{
 				PriorityChannel: combinedUsersAndMessageTypesPriorityChannel,
 				Priority:        1,
