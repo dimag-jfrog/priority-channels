@@ -5,8 +5,17 @@ import (
 )
 
 type PriorityChannel[T any] interface {
-	Receive(ctx context.Context) (msg T, channelName string, ok bool)
+	Receive() (msg T, channelName string, ok bool)
+	ReceiveContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus)
 }
+
+type ReceiveStatus int
+
+const (
+	ReceiveSuccess ReceiveStatus = iota
+	ReceiveContextCancelled
+	ReceiveChannelClosed
+)
 
 type priorityChannelMsgReceiver[T any] interface {
 	ReceiveSingleMessage(ctx context.Context) (msgReceived *msgReceivedEvent[T], noMoreMessages *noMoreMessagesEvent)
@@ -23,6 +32,17 @@ const (
 	ContextCancelled ExitReason = iota
 	ChannelClosed
 )
+
+func (r ExitReason) ReceiveStatus() ReceiveStatus {
+	switch r {
+	case ContextCancelled:
+		return ReceiveContextCancelled
+	case ChannelClosed:
+		return ReceiveChannelClosed
+	default:
+		return ReceiveChannelClosed
+	}
+}
 
 type noMoreMessagesEvent struct {
 	Reason ExitReason
@@ -49,20 +69,35 @@ func getZero[T any]() T {
 	return result
 }
 
-func WrapAsPriorityChannel[T any](channelName string, msgsC <-chan T) PriorityChannel[T] {
-	return &wrappedChannel[T]{channelName: channelName, msgsC: msgsC}
+func WrapAsPriorityChannel[T any](ctx context.Context, channelName string, msgsC <-chan T) PriorityChannel[T] {
+	return &wrappedChannel[T]{ctx: ctx, channelName: channelName, msgsC: msgsC}
 }
 
 type wrappedChannel[T any] struct {
+	ctx         context.Context
 	channelName string
 	msgsC       <-chan T
 }
 
-func (w *wrappedChannel[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
+func (w *wrappedChannel[T]) Receive() (msg T, channelName string, ok bool) {
 	select {
-	case <-ctx.Done():
+	case <-w.ctx.Done():
 		return getZero[T](), "", false
 	case msg, ok = <-w.msgsC:
 		return msg, w.channelName, ok
+	}
+}
+
+func (w *wrappedChannel[T]) ReceiveContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
+	select {
+	case <-w.ctx.Done():
+		return getZero[T](), "", ReceiveChannelClosed
+	case <-ctx.Done():
+		return getZero[T](), "", ReceiveContextCancelled
+	case msg, ok := <-w.msgsC:
+		if !ok {
+			return getZero[T](), "", ReceiveChannelClosed
+		}
+		return msg, w.channelName, ReceiveSuccess
 	}
 }

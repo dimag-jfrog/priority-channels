@@ -17,6 +17,8 @@ type Msg struct {
 }
 
 func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	msgsChannels := make([]chan *Msg, 4)
 	msgsChannels[0] = make(chan *Msg, 15)
 	msgsChannels[1] = make(chan *Msg, 15)
@@ -25,20 +27,20 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 
 	channels := []priority_channel_groups.PriorityChannelWithPriority[*Msg]{
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 				channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
 			}),
 			Priority: 1,
 		},
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 1),
 			}),
 			Priority: 10,
 		},
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1),
 			}),
 			Priority: 1000,
@@ -58,7 +60,6 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		results = append(results, msg)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 
 	go priority_channel_groups.ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
 
@@ -126,6 +127,8 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 }
 
 func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfTheChannelsArriveAfterSomeTime(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	msgsChannels := make([]chan *Msg, 3)
 	msgsChannels[0] = make(chan *Msg, 7)
 	msgsChannels[1] = make(chan *Msg, 7)
@@ -133,14 +136,14 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 
 	channels := []priority_channel_groups.PriorityChannelWithPriority[*Msg]{
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 				channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
 			}),
 			Priority: 1,
 		},
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg]([]channels.ChannelFreqRatio[*Msg]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 1),
 			}),
 			Priority: 2,
@@ -165,7 +168,6 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 		}
 		results = append(results, msg)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 
 	go priority_channel_groups.ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
 

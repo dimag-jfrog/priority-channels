@@ -21,7 +21,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 
 	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Paying Customer - High Priority",
 					payingCustomerHighPriorityC,
@@ -34,7 +34,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 			FreqRatio: 10,
 		},
 		{
-			PriorityChannel: priority_channels.NewByFrequencyRatio[string]([]channels.ChannelFreqRatio[string]{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Free User - High Priority",
 					freeUserHighPriorityC,
@@ -79,7 +79,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 	// receiving messages from the priority channel
 	results := make([]string, 0, 80)
 	for {
-		message, channelName, ok := ch.Receive(ctx)
+		message, channelName, ok := ch.Receive()
 		if !ok {
 			break
 		}

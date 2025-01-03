@@ -9,16 +9,24 @@ import (
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewByFrequencyRatio[T any](channelsWithFreqRatios []channels.ChannelFreqRatio[T]) PriorityChannel[T] {
-	return newPriorityChannelByFrequencyRatio[T](channelsWithFreqRatios)
+func NewByFrequencyRatio[T any](ctx context.Context, channelsWithFreqRatios []channels.ChannelFreqRatio[T]) PriorityChannel[T] {
+	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios)
 }
 
-func (pc *priorityChannelsByFreq[T]) Receive(ctx context.Context) (msg T, channelName string, ok bool) {
-	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
+func (pc *priorityChannelsByFreq[T]) Receive() (msg T, channelName string, ok bool) {
+	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(context.Background())
 	if noMoreMessages != nil {
 		return getZero[T](), "", false
 	}
 	return msgReceived.Msg, msgReceived.ChannelName, true
+}
+
+func (pc *priorityChannelsByFreq[T]) ReceiveContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
+	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
+	if noMoreMessages != nil {
+		return getZero[T](), "", noMoreMessages.Reason.ReceiveStatus()
+	}
+	return msgReceived.Msg, msgReceived.ChannelName, ReceiveSuccess
 }
 
 type priorityBucket[T any] struct {
@@ -35,11 +43,13 @@ type level[T any] struct {
 }
 
 type priorityChannelsByFreq[T any] struct {
+	ctx          context.Context
 	levels       []*level[T]
 	totalBuckets int
 }
 
 func newPriorityChannelByFrequencyRatio[T any](
+	ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
 	zeroLevel := &level[T]{}
 	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(channelsWithFreqRatios))
@@ -56,6 +66,7 @@ func newPriorityChannelByFrequencyRatio[T any](
 		return zeroLevel.Buckets[i].Capacity > zeroLevel.Buckets[j].Capacity
 	})
 	return &priorityChannelsByFreq[T]{
+		ctx:          ctx,
 		levels:       []*level[T]{zeroLevel},
 		totalBuckets: len(channelsWithFreqRatios),
 	}
@@ -65,7 +76,7 @@ func ProcessMessagesByFrequencyRatio[T any](
 	ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
-	pq := newPriorityChannelByFrequencyRatio(channelsWithFreqRatios)
+	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios)
 	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
 }
 
@@ -74,7 +85,11 @@ func (pq *priorityChannelsByFreq[T]) ReceiveSingleMessage(ctx context.Context) (
 		selectCases := pq.prepareSelectCases(ctx, numOfBucketsToProcess)
 		chosen, recv, recvOk := reflect.Select(selectCases)
 		if chosen == 0 {
-			// ctx.Done Channel
+			// context of the priority channel is done
+			return nil, &noMoreMessagesEvent{Reason: ChannelClosed}
+		}
+		if chosen == 1 {
+			// context of the specific request is done
 			return nil, &noMoreMessagesEvent{Reason: ContextCancelled}
 		}
 		isLastIteration := numOfBucketsToProcess == pq.totalBuckets
@@ -101,6 +116,10 @@ func (pq *priorityChannelsByFreq[T]) ReceiveSingleMessage(ctx context.Context) (
 func (pq *priorityChannelsByFreq[T]) prepareSelectCases(ctx context.Context, numOfBucketsToProcess int) []reflect.SelectCase {
 	addedBuckets := 0
 	selectCases := make([]reflect.SelectCase, 0, numOfBucketsToProcess+2)
+	selectCases = append(selectCases, reflect.SelectCase{
+		Dir:  reflect.SelectRecv,
+		Chan: reflect.ValueOf(pq.ctx.Done()),
+	})
 	selectCases = append(selectCases, reflect.SelectCase{
 		Dir:  reflect.SelectRecv,
 		Chan: reflect.ValueOf(ctx.Done()),
@@ -135,13 +154,13 @@ func (pq *priorityChannelsByFreq[T]) prepareSelectCases(ctx context.Context, num
 }
 
 func (pq *priorityChannelsByFreq[T]) getLevelAndBucketIndexByChosenChannelIndex(chosen int) (levelIndex int, bucketIndex int) {
-	currIndex := 0
+	currIndex := 2
 	for i := range pq.levels {
 		for j := range pq.levels[i].Buckets {
-			currIndex++
 			if currIndex == chosen {
 				return i, j
 			}
+			currIndex++
 		}
 	}
 	return -1, -1
