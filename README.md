@@ -4,15 +4,15 @@ Process Go channels by priority.
 
 The following use cases are supported:
 
-Main use cases:
+### Primary use cases:
 - **Highest priority always first** - when we always want to process messages in order of priority
 - **Processing by frequency ratio** - when we want to prevent starvation of lower priority messages
 
-Combinations of main use cases - priority channel groups:
+### Advanced use cases - priority channel groups:
 - Channel groups by highest priority first inside group and choose among groups by frequency ratio
 - Channel groups by frequency ratio inside group and choose among groups by highest priority first
 - Channel groups by frequency ratio inside group and choose among groups by frequency ratio
-- And so on - any combination of the above
+- Graph of priority channels - any combinations of the above to multiple levels of hierarchy
 
 
 ## Usage
