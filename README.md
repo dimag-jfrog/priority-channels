@@ -1,18 +1,28 @@
 # priority-channels
-Process Go channels by priority. 
+Process Go channels by priority.<br/>
+This package enables priority-based processing of Go channels, allowing messages to be handled according to 
+their priority or frequency ratio.
 
+## Supported Use Cases
 
-The following use cases are supported:
+### Primary use cases:
+- **Highest Priority Always First**<br/>
+  Process messages strictly in order of priority, ensuring the highest-priority messages are always handled first.<br/><br/>
+- **Processing by Frequency Ratio**<br/>
+  Distribute processing based on specified frequency ratios to prevent lower-priority messages from being starved.
 
-Main use cases:
-- **Highest priority always first** - when we always want to process messages in order of priority
-- **Processing by frequency ratio** - when we want to prevent starvation of lower priority messages
-
-Combinations of main use cases - priority channel groups:
-- Channel groups by highest priority first inside group and choose among groups by frequency ratio
-- Channel groups by frequency ratio inside group and choose among groups by highest priority first
-- Channel groups by frequency ratio inside group and choose among groups by frequency ratio
-- And so on - any combination of the above
+### Advanced Use Cases – Composable Priority Channel Groups:
+Channels can be organized into **priority channel groups** for more complex scenarios.<br/>
+Each group can itself be treated as a **PriorityChannel**, allowing further composition with other channels or groups.<br/> 
+This enables:
+- **Group by Highest Priority, Choose by Frequency Ratio**<br/>
+  Within each group, process messages by highest priority. Switch between groups based on frequency ratios.<br/><br/>
+- **Group by Frequency Ratio, Choose by Highest Priority**<br/>
+  Inside groups, process messages by frequency ratio. Across groups, prioritize the highest-priority messages.<br/><br/>
+- **Group by Frequency Ratio, Choose by Frequency Ratio**<br/>
+  Apply frequency ratio processing both within and across groups for balanced message handling.<br/><br/>
+- **Graph of Priority Channels**<br/>
+  Combine multiple levels of priority channels to create a complex hierarchy of message processing.
 
 
 ## Usage
