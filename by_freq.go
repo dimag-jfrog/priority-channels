@@ -14,19 +14,23 @@ func NewByFrequencyRatio[T any](ctx context.Context, channelsWithFreqRatios []ch
 }
 
 func (pc *priorityChannelsByFreq[T]) Receive() (msg T, channelName string, ok bool) {
-	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(context.Background())
-	if noMoreMessages != nil {
-		return getZero[T](), "", false
+	msg, channelName, status := pc.receiveSingleMessage(context.Background(), false)
+	if status != ReceiveSuccess {
+		return getZero[T](), channelName, false
 	}
-	return msgReceived.Msg, msgReceived.ChannelName, true
+	return msg, channelName, true
 }
 
 func (pc *priorityChannelsByFreq[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
-	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
-	if noMoreMessages != nil {
-		return getZero[T](), "", noMoreMessages.Reason.ReceiveStatus()
-	}
-	return msgReceived.Msg, msgReceived.ChannelName, ReceiveSuccess
+	return pc.receiveSingleMessage(ctx, false)
+}
+
+func (pc *priorityChannelsByFreq[T]) ReceiveWithDefaultCase() (msg T, channelName string, status ReceiveStatus) {
+	return pc.receiveSingleMessage(context.Background(), true)
+}
+
+func (pc *priorityChannelsByFreq[T]) Context() context.Context {
+	return pc.ctx
 }
 
 type priorityBucket[T any] struct {
@@ -77,40 +81,44 @@ func ProcessMessagesByFrequencyRatio[T any](
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios)
-	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
+	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 
-func (pq *priorityChannelsByFreq[T]) ReceiveSingleMessage(ctx context.Context) (msgReceived *msgReceivedEvent[T], noMoreMessages *noMoreMessagesEvent) {
+func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
 	for numOfBucketsToProcess := 1; numOfBucketsToProcess <= pq.totalBuckets; numOfBucketsToProcess++ {
 		selectCases := pq.prepareSelectCases(ctx, numOfBucketsToProcess)
 		chosen, recv, recvOk := reflect.Select(selectCases)
 		if chosen == 0 {
 			// context of the priority channel is done
-			return nil, &noMoreMessagesEvent{Reason: ChannelClosed}
+			return getZero[T](), "", ReceiveChannelClosed
 		}
 		if chosen == 1 {
 			// context of the specific request is done
-			return nil, &noMoreMessagesEvent{Reason: ContextCancelled}
+			return getZero[T](), "", ReceiveContextCancelled
 		}
 		isLastIteration := numOfBucketsToProcess == pq.totalBuckets
-		if !isLastIteration && chosen == len(selectCases)-1 {
-			// Default case - go to next iteration to increase the range of allowed minimal priority channels
-			// on last iteration - blocking wait on all receive channels without default case
-			continue
+		if chosen == len(selectCases)-1 {
+			if !isLastIteration {
+				// Default case - go to next iteration to increase the range of allowed minimal priority channels
+				// on last iteration - blocking wait on all receive channels without default case
+				continue
+			} else if withDefaultCase {
+				return getZero[T](), "", ReceiveDefaultCase
+			}
 		}
+		levelIndex, bucketIndex := pq.getLevelAndBucketIndexByChosenChannelIndex(chosen)
+		chosenBucket := pq.levels[levelIndex].Buckets[bucketIndex]
+		channelName = chosenBucket.ChannelName
 		if !recvOk {
 			// no more messages in channel
-			return nil, &noMoreMessagesEvent{Reason: ChannelClosed}
+			return getZero[T](), channelName, ReceiveChannelClosed
 		}
 		// Message received successfully
 		msg := recv.Interface().(T)
-		levelIndex, bucketIndex := pq.getLevelAndBucketIndexByChosenChannelIndex(chosen)
-		chosenBucket := pq.levels[levelIndex].Buckets[bucketIndex]
-		res := &msgReceivedEvent[T]{Msg: msg, ChannelName: chosenBucket.ChannelName}
 		pq.updateStateOnReceivingMessageToBucket(levelIndex, bucketIndex)
-		return res, nil
+		return msg, channelName, ReceiveSuccess
 	}
-	return nil, nil
+	return getZero[T](), "", ReceiveStatusUnknown
 }
 
 func (pq *priorityChannelsByFreq[T]) prepareSelectCases(ctx context.Context, numOfBucketsToProcess int) []reflect.SelectCase {

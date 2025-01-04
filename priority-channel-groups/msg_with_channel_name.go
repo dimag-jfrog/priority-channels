@@ -31,6 +31,14 @@ func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithContext(ctx contex
 	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, status
 }
 
+func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithDefaultCase() (msg T, channelName string, status priority_channels.ReceiveStatus) {
+	msgWithChannelName, _, status := pc.priorityChannel.ReceiveWithDefaultCase()
+	if status != priority_channels.ReceiveSuccess {
+		return getZero[T](), msgWithChannelName.ChannelName, status
+	}
+	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, status
+}
+
 func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, priorityChannel priority_channels.PriorityChannel[T]) <-chan msgWithChannelName[T] {
 	msgWithNameC := make(chan msgWithChannelName[T])
 	go func() {

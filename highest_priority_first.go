@@ -14,19 +14,23 @@ func NewByHighestAlwaysFirst[T any](ctx context.Context, channelsWithPriorities 
 }
 
 func (pc *priorityChannelsHighestFirst[T]) Receive() (msg T, channelName string, ok bool) {
-	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(context.Background())
-	if noMoreMessages != nil {
-		return getZero[T](), "", false
+	msg, channelName, status := pc.receiveSingleMessage(context.Background(), false)
+	if status != ReceiveSuccess {
+		return getZero[T](), channelName, false
 	}
-	return msgReceived.Msg, msgReceived.ChannelName, true
+	return msg, channelName, true
 }
 
 func (pc *priorityChannelsHighestFirst[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
-	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
-	if noMoreMessages != nil {
-		return getZero[T](), "", noMoreMessages.Reason.ReceiveStatus()
-	}
-	return msgReceived.Msg, msgReceived.ChannelName, ReceiveSuccess
+	return pc.receiveSingleMessage(ctx, false)
+}
+
+func (pc *priorityChannelsHighestFirst[T]) ReceiveWithDefaultCase() (msg T, channelName string, status ReceiveStatus) {
+	return pc.receiveSingleMessage(context.Background(), true)
+}
+
+func (pc *priorityChannelsHighestFirst[T]) Context() context.Context {
+	return pc.ctx
 }
 
 type priorityChannelsHighestFirst[T any] struct {
@@ -59,40 +63,44 @@ func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
 	channelsWithPriorities []channels.ChannelWithPriority[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	pq := newPriorityChannelByPriority(ctx, channelsWithPriorities)
-	return processPriorityChannelMessages[T](ctx, pq, msgProcessor)
+	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 
-func (pc *priorityChannelsHighestFirst[T]) ReceiveSingleMessage(ctx context.Context) (msgReceived *msgReceivedEvent[T], noMoreMessages *noMoreMessagesEvent) {
+func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
 	for nextPriorityChannelIndex := 0; nextPriorityChannelIndex < len(pc.channels); nextPriorityChannelIndex++ {
-		selectCases := pc.prepareSelectCases(ctx, nextPriorityChannelIndex)
+		selectCases := pc.prepareSelectCases(ctx, nextPriorityChannelIndex, withDefaultCase)
 		chosen, recv, recvOk := reflect.Select(selectCases)
 		if chosen == 0 {
 			// context of the priority channel is done
-			return nil, &noMoreMessagesEvent{Reason: ChannelClosed}
+			return getZero[T](), "", ReceiveChannelClosed
 		}
 		if chosen == 1 {
 			// context of the specific request is done
-			return nil, &noMoreMessagesEvent{Reason: ContextCancelled}
+			return getZero[T](), "", ReceiveContextCancelled
 		}
 		isLastIteration := nextPriorityChannelIndex == len(pc.channels)-1
-		if !isLastIteration && chosen == len(selectCases)-1 {
-			// Default case - go to next iteration to increase the range of allowed minimal priority channels
-			// on last iteration - blocking wait on all receive channels without default case
-			continue
+		if chosen == len(selectCases)-1 {
+			if !isLastIteration {
+				// Default case - go to next iteration to increase the range of allowed minimal priority channels
+				// on last iteration - blocking wait on all receive channels without default case
+				continue
+			} else if withDefaultCase {
+				return getZero[T](), "", ReceiveDefaultCase
+			}
 		}
+		channelName := pc.channels[chosen-2].ChannelName()
 		if !recvOk {
 			// no more messages in channel
-			return nil, &noMoreMessagesEvent{Reason: ChannelClosed}
+			return getZero[T](), channelName, ReceiveChannelClosed
 		}
 		// Message received successfully
 		msg := recv.Interface().(T)
-		res := &msgReceivedEvent[T]{Msg: msg, ChannelName: pc.channels[chosen-2].ChannelName()}
-		return res, nil
+		return msg, channelName, ReceiveSuccess
 	}
-	return nil, nil
+	return getZero[T](), "", ReceiveStatusUnknown
 }
 
-func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(ctx context.Context, currPriorityChannelIndex int) []reflect.SelectCase {
+func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(ctx context.Context, currPriorityChannelIndex int, withDefaultCase bool) []reflect.SelectCase {
 	var selectCases []reflect.SelectCase
 	selectCases = append(selectCases, reflect.SelectCase{
 		Dir:  reflect.SelectRecv,
@@ -109,7 +117,7 @@ func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(ctx context.Contex
 		})
 	}
 	isLastIteration := currPriorityChannelIndex == len(pc.channels)-1
-	if !isLastIteration {
+	if !isLastIteration || withDefaultCase {
 		selectCases = append(selectCases, reflect.SelectCase{
 			// The default option without any sleep did not pass tests
 			// short sleep is needed to guarantee that we do not enter default case when there are still messages
