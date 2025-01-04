@@ -26,8 +26,9 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 	res := make([]channels.ChannelWithPriority[msgWithChannelName[T]], 0, len(priorityChannelsWithPriority))
 
 	for _, q := range priorityChannelsWithPriority {
-		msgWithNameC := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
-		res = append(res, channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority))
+		msgWithNameC, fnGetClosedChannelName := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
+		channel := channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority)
+		res = append(res, newChannelWithPriorityAndClosedChannelName(channel, fnGetClosedChannelName))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].Priority() > res[j].Priority()
@@ -44,4 +45,32 @@ func ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst[T any](
 		msgProcessor(ctx, msg.Msg, msg.ChannelName)
 	}
 	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, msgProcessorNew)
+}
+
+type channelWithPriorityAndClosedChannelName[T any] struct {
+	channel                channels.ChannelWithPriority[T]
+	fnGetClosedChannelName func() string
+}
+
+func (c *channelWithPriorityAndClosedChannelName[T]) ChannelName() string {
+	return c.channel.ChannelName()
+}
+
+func (c *channelWithPriorityAndClosedChannelName[T]) MsgsC() <-chan T {
+	return c.channel.MsgsC()
+}
+
+func (c *channelWithPriorityAndClosedChannelName[T]) Priority() int {
+	return c.channel.Priority()
+}
+
+func (c *channelWithPriorityAndClosedChannelName[T]) UnderlyingClosedChannelName() string {
+	return c.fnGetClosedChannelName()
+}
+
+func newChannelWithPriorityAndClosedChannelName[T any](channel channels.ChannelWithPriority[T], fnGetClosedChannelName func() string) channels.ChannelWithPriority[T] {
+	return &channelWithPriorityAndClosedChannelName[T]{
+		channel:                channel,
+		fnGetClosedChannelName: fnGetClosedChannelName,
+	}
 }

@@ -33,10 +33,20 @@ func (pc *priorityChannelsByFreq[T]) Context() context.Context {
 }
 
 type priorityBucket[T any] struct {
-	ChannelName string
-	Value       int
-	Capacity    int
-	MsgsC       <-chan T
+	Channel channels.ChannelFreqRatio[T]
+	Value   int
+}
+
+func (pb *priorityBucket[T]) ChannelName() string {
+	return pb.Channel.ChannelName()
+}
+
+func (pb *priorityBucket[T]) MsgsC() <-chan T {
+	return pb.Channel.MsgsC()
+}
+
+func (pb *priorityBucket[T]) Capacity() int {
+	return pb.Channel.FreqRatio()
 }
 
 type level[T any] struct {
@@ -57,16 +67,15 @@ func newPriorityChannelByFrequencyRatio[T any](
 	zeroLevel := &level[T]{}
 	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(channelsWithFreqRatios))
 	for _, q := range channelsWithFreqRatios {
-		zeroLevel.Buckets = append(zeroLevel.Buckets, &priorityBucket[T]{
-			Value:       0,
-			Capacity:    q.FreqRatio(),
-			MsgsC:       q.MsgsC(),
-			ChannelName: q.ChannelName(),
-		})
-		zeroLevel.TotalCapacity += q.FreqRatio()
+		bucket := &priorityBucket[T]{
+			Channel: q,
+			Value:   0,
+		}
+		zeroLevel.Buckets = append(zeroLevel.Buckets, bucket)
+		zeroLevel.TotalCapacity += bucket.Capacity()
 	}
 	sort.Slice(zeroLevel.Buckets, func(i int, j int) bool {
-		return zeroLevel.Buckets[i].Capacity > zeroLevel.Buckets[j].Capacity
+		return zeroLevel.Buckets[i].Capacity() > zeroLevel.Buckets[j].Capacity()
 	})
 	return &priorityChannelsByFreq[T]{
 		ctx:          ctx,
@@ -100,9 +109,12 @@ func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, w
 		}
 		levelIndex, bucketIndex := pq.getLevelAndBucketIndexByChosenChannelIndex(chosen)
 		chosenBucket := pq.levels[levelIndex].Buckets[bucketIndex]
-		channelName = chosenBucket.ChannelName
+		channelName = chosenBucket.ChannelName()
 		if !recvOk {
 			// no more messages in channel
+			if c, ok := chosenBucket.Channel.(ChannelWithUnderlyingClosedChannelName); ok {
+				channelName = c.UnderlyingClosedChannelName()
+			}
 			return getZero[T](), channelName, ReceiveChannelClosed
 		}
 		// Message received successfully
@@ -120,7 +132,7 @@ func (pq *priorityChannelsByFreq[T]) prepareSelectCases(numOfBucketsToProcess in
 		for _, b := range level.Buckets {
 			selectCases = append(selectCases, reflect.SelectCase{
 				Dir:  reflect.SelectRecv,
-				Chan: reflect.ValueOf(b.MsgsC),
+				Chan: reflect.ValueOf(b.MsgsC()),
 			})
 			addedBuckets++
 			if addedBuckets == numOfBucketsToProcess {
@@ -157,7 +169,7 @@ func (pq *priorityChannelsByFreq[T]) updateStateOnReceivingMessageToBucket(level
 		pq.mergeAllNextLevelsBackIntoCurrentLevel(levelIndex)
 		return
 	}
-	if chosenBucket.Value == chosenBucket.Capacity {
+	if chosenBucket.Value == chosenBucket.Capacity() {
 		pq.moveBucketToNextLevel(levelIndex, bucketIndex)
 		return
 	}
@@ -171,7 +183,7 @@ func (pq *priorityChannelsByFreq[T]) mergeAllNextLevelsBackIntoCurrentLevel(leve
 			chosenLevel.Buckets = append(chosenLevel.Buckets, nextLevel.Buckets...)
 		}
 		sort.Slice(chosenLevel.Buckets, func(i int, j int) bool {
-			return chosenLevel.Buckets[i].Capacity > chosenLevel.Buckets[j].Capacity
+			return chosenLevel.Buckets[i].Capacity() > chosenLevel.Buckets[j].Capacity()
 		})
 		pq.levels = pq.levels[0 : levelIndex+1]
 	}
@@ -194,10 +206,10 @@ func (pq *priorityChannelsByFreq[T]) moveBucketToNextLevel(levelIndex int, bucke
 		pq.levels = append(pq.levels, &level[T]{})
 	}
 	nextLevel := pq.levels[levelIndex+1]
-	nextLevel.TotalCapacity += chosenBucket.Capacity
+	nextLevel.TotalCapacity += chosenBucket.Capacity()
 	chosenLevel.Buckets = append(chosenLevel.Buckets[:bucketIndex], chosenLevel.Buckets[bucketIndex+1:]...)
 	i := sort.Search(len(nextLevel.Buckets), func(i int) bool {
-		return nextLevel.Buckets[i].Capacity < chosenBucket.Capacity
+		return nextLevel.Buckets[i].Capacity() < chosenBucket.Capacity()
 	})
 	nextLevel.Buckets = append(nextLevel.Buckets, &priorityBucket[T]{})
 	copy(nextLevel.Buckets[i+1:], nextLevel.Buckets[i:])

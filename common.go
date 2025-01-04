@@ -46,6 +46,10 @@ const (
 	UnknownExitReason
 )
 
+type ChannelWithUnderlyingClosedChannelName interface {
+	UnderlyingClosedChannelName() string
+}
+
 func processPriorityChannelMessages[T any](
 	msgReceiver PriorityChannelWithContext[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {

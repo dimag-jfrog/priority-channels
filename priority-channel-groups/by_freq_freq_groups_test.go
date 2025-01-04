@@ -181,3 +181,67 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 		}
 	}
 }
+
+func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups_ChannelClosed(t *testing.T) {
+	ctx := context.Background()
+	payingCustomerHighPriorityC := make(chan string)
+	payingCustomerLowPriorityC := make(chan string)
+	freeUserHighPriorityC := make(chan string)
+	freeUserLowPriorityC := make(chan string)
+
+	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
+		{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
+					"Paying Customer - High Priority",
+					payingCustomerHighPriorityC,
+					5),
+				channels.NewChannelWithFreqRatio(
+					"Paying Customer - Low Priority",
+					payingCustomerLowPriorityC,
+					1),
+			}),
+			FreqRatio: 10,
+		},
+		{
+			PriorityChannel: priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
+					"Free User - High Priority",
+					freeUserHighPriorityC,
+					5),
+				channels.NewChannelWithFreqRatio(
+					"Free User - Low Priority",
+					freeUserLowPriorityC,
+					1),
+			}),
+			FreqRatio: 1,
+		},
+	}
+	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+
+	close(freeUserHighPriorityC)
+
+	for i := 0; i < 3; i++ {
+		message, channelName, status := ch.ReceiveWithContext(context.Background())
+		if status != priority_channels.ReceiveChannelClosed {
+			t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", priority_channels.ReceiveChannelClosed, status)
+		}
+		if channelName != "Free User - High Priority" {
+			t.Errorf("Expected channel name 'Free User - High Priority', but got %s", channelName)
+		}
+		if message != "" {
+			t.Errorf("Expected empty message, but got %s", message)
+		}
+	}
+
+	message, channelName, status := ch.ReceiveWithDefaultCase()
+	if status != priority_channels.ReceiveChannelClosed {
+		t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", priority_channels.ReceiveChannelClosed, status)
+	}
+	if channelName != "Free User - High Priority" {
+		t.Errorf("Expected channel name 'Free User - High Priority', but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}

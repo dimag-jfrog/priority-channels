@@ -180,3 +180,159 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 		}
 	}
 }
+
+func TestProcessMessagesByPriorityWithHighestAlwaysFirst_ChannelClose(t *testing.T) {
+	urgentC := make(chan string)
+	normalC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithPriority := []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Urgent Messages",
+			urgentC,
+			10),
+		channels.NewChannelWithPriority(
+			"Normal Messages",
+			normalC,
+			5),
+		channels.NewChannelWithPriority(
+			"Low Priority Messages",
+			lowPriorityC,
+			1),
+	}
+
+	close(normalC)
+
+	ch := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+
+	for i := 0; i < 3; i++ {
+		message, channelName, status := ch.ReceiveWithContext(context.Background())
+		if status != pc.ReceiveChannelClosed {
+			t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", pc.ReceiveChannelClosed, status)
+		}
+		if channelName != "Normal Messages" {
+			t.Errorf("Expected channel name 'Normal Messages', but got %s", channelName)
+		}
+		if message != "" {
+			t.Errorf("Expected empty message, but got %s", message)
+		}
+	}
+
+	message, channelName, status := ch.ReceiveWithDefaultCase()
+	if status != pc.ReceiveChannelClosed {
+		t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", pc.ReceiveChannelClosed, status)
+	}
+	if channelName != "Normal Messages" {
+		t.Errorf("Expected channel name 'Normal Messages', but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestProcessMessagesByPriorityWithHighestAlwaysFirst_ExitOnDefaultCase(t *testing.T) {
+	urgentC := make(chan string)
+	normalC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithPriority := []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Urgent Messages",
+			urgentC,
+			10),
+		channels.NewChannelWithPriority(
+			"Normal Messages",
+			normalC,
+			5),
+		channels.NewChannelWithPriority(
+			"Low Priority Messages",
+			lowPriorityC,
+			1),
+	}
+
+	ch := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+
+	message, channelName, status := ch.ReceiveWithDefaultCase()
+	if status != pc.ReceiveDefaultCase {
+		t.Errorf("Expected status ReceiveDefaultCase (%d), but got %d", pc.ReceiveDefaultCase, status)
+	}
+	if channelName != "" {
+		t.Errorf("Expected empty channel name, but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestProcessMessagesByPriorityWithHighestAlwaysFirst_RequestContextCancelled(t *testing.T) {
+	urgentC := make(chan string)
+	normalC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithPriority := []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Urgent Messages",
+			urgentC,
+			10),
+		channels.NewChannelWithPriority(
+			"Normal Messages",
+			normalC,
+			5),
+		channels.NewChannelWithPriority(
+			"Low Priority Messages",
+			lowPriorityC,
+			1),
+	}
+
+	ch := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	message, channelName, status := ch.ReceiveWithContext(ctx)
+	if status != pc.ReceiveContextCancelled {
+		t.Errorf("Expected status ReceiveContextCancelled (%d), but got %d", pc.ReceiveContextCancelled, status)
+	}
+	if channelName != "" {
+		t.Errorf("Expected empty channel name, but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestProcessMessagesByPriorityWithHighestAlwaysFirst_PriorityChannelContextCancelled(t *testing.T) {
+	urgentC := make(chan string)
+	normalC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithPriority := []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Urgent Messages",
+			urgentC,
+			10),
+		channels.NewChannelWithPriority(
+			"Normal Messages",
+			normalC,
+			5),
+		channels.NewChannelWithPriority(
+			"Low Priority Messages",
+			lowPriorityC,
+			1),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ch := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority)
+
+	message, channelName, status := ch.ReceiveWithContext(context.Background())
+	if status != pc.ReceiveChannelClosed {
+		t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", pc.ReceiveChannelClosed, status)
+	}
+	if channelName != "" {
+		t.Errorf("Expected empty channel name, but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}

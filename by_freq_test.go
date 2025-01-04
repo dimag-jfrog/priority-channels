@@ -184,3 +184,159 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 		}
 	}
 }
+
+func TestProcessMessagesByFrequencyRatio_ChannelClosed(t *testing.T) {
+	highPriorityC := make(chan string)
+	normalPriorityC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+		channels.NewChannelWithFreqRatio(
+			"High Priority",
+			highPriorityC,
+			10),
+		channels.NewChannelWithFreqRatio(
+			"Normal Priority",
+			normalPriorityC,
+			5),
+		channels.NewChannelWithFreqRatio(
+			"Low Priority",
+			lowPriorityC,
+			1),
+	}
+
+	close(normalPriorityC)
+
+	ch := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	for i := 0; i < 3; i++ {
+		message, channelName, status := ch.ReceiveWithContext(context.Background())
+		if status != pc.ReceiveChannelClosed {
+			t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", pc.ReceiveChannelClosed, status)
+		}
+		if channelName != "Normal Priority" {
+			t.Errorf("Expected channel name 'Normal Priority', but got %s", channelName)
+		}
+		if message != "" {
+			t.Errorf("Expected empty message, but got %s", message)
+		}
+	}
+
+	message, channelName, status := ch.ReceiveWithDefaultCase()
+	if status != pc.ReceiveChannelClosed {
+		t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", pc.ReceiveChannelClosed, status)
+	}
+	if channelName != "Normal Priority" {
+		t.Errorf("Expected channel name 'Normal Priority', but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestProcessMessagesByFrequencyRatio_ExitOnDefaultCase(t *testing.T) {
+	highPriorityC := make(chan string)
+	normalPriorityC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+		channels.NewChannelWithFreqRatio(
+			"High Priority",
+			highPriorityC,
+			10),
+		channels.NewChannelWithFreqRatio(
+			"Normal Priority",
+			normalPriorityC,
+			5),
+		channels.NewChannelWithFreqRatio(
+			"Low Priority",
+			lowPriorityC,
+			1),
+	}
+
+	ch := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+
+	message, channelName, status := ch.ReceiveWithDefaultCase()
+	if status != pc.ReceiveDefaultCase {
+		t.Errorf("Expected status ReceiveDefaultCase (%d), but got %d", pc.ReceiveDefaultCase, status)
+	}
+	if channelName != "" {
+		t.Errorf("Expected empty channel name, but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestProcessMessagesByFrequencyRatio_RequestContextCancelled(t *testing.T) {
+	highPriorityC := make(chan string)
+	normalPriorityC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+		channels.NewChannelWithFreqRatio(
+			"High Priority",
+			highPriorityC,
+			10),
+		channels.NewChannelWithFreqRatio(
+			"Normal Priority",
+			normalPriorityC,
+			5),
+		channels.NewChannelWithFreqRatio(
+			"Low Priority",
+			lowPriorityC,
+			1),
+	}
+
+	ch := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	message, channelName, status := ch.ReceiveWithContext(ctx)
+	if status != pc.ReceiveContextCancelled {
+		t.Errorf("Expected status ReceiveContextCancelled (%d), but got %d", pc.ReceiveContextCancelled, status)
+	}
+	if channelName != "" {
+		t.Errorf("Expected empty channel name, but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestProcessMessagesByFrequencyRatio_PriorityChannelContextCancelled(t *testing.T) {
+	highPriorityC := make(chan string)
+	normalPriorityC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+		channels.NewChannelWithFreqRatio(
+			"High Priority",
+			highPriorityC,
+			10),
+		channels.NewChannelWithFreqRatio(
+			"Normal Priority",
+			normalPriorityC,
+			5),
+		channels.NewChannelWithFreqRatio(
+			"Low Priority",
+			lowPriorityC,
+			1),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	ch := pc.NewByFrequencyRatio(ctx, channelsWithFrequencyRatio)
+
+	message, channelName, status := ch.ReceiveWithContext(context.Background())
+	if status != pc.ReceiveChannelClosed {
+		t.Errorf("Expected status ReceiveChannelClosed (%d), but got %d", pc.ReceiveChannelClosed, status)
+	}
+	if channelName != "" {
+		t.Errorf("Expected empty channel name, but got %s", channelName)
+	}
+	if message != "" {
+		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
