@@ -21,7 +21,7 @@ func (pc *priorityChannelsHighestFirst[T]) Receive() (msg T, channelName string,
 	return msgReceived.Msg, msgReceived.ChannelName, true
 }
 
-func (pc *priorityChannelsHighestFirst[T]) ReceiveContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
+func (pc *priorityChannelsHighestFirst[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
 	msgReceived, noMoreMessages := pc.ReceiveSingleMessage(ctx)
 	if noMoreMessages != nil {
 		return getZero[T](), "", noMoreMessages.Reason.ReceiveStatus()

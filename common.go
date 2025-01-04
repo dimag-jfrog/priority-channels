@@ -6,7 +6,7 @@ import (
 
 type PriorityChannel[T any] interface {
 	Receive() (msg T, channelName string, ok bool)
-	ReceiveContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus)
+	ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus)
 }
 
 type ReceiveStatus int
@@ -88,7 +88,7 @@ func (w *wrappedChannel[T]) Receive() (msg T, channelName string, ok bool) {
 	}
 }
 
-func (w *wrappedChannel[T]) ReceiveContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
+func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
 		return getZero[T](), "", ReceiveChannelClosed

@@ -23,8 +23,8 @@ func (pc *priorityChannelOfMsgsWithChannelName[T]) Receive() (msg T, channelName
 	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, true
 }
 
-func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveContext(ctx context.Context) (msg T, channelName string, status priority_channels.ReceiveStatus) {
-	msgWithChannelName, _, status := pc.priorityChannel.ReceiveContext(ctx)
+func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status priority_channels.ReceiveStatus) {
+	msgWithChannelName, _, status := pc.priorityChannel.ReceiveWithContext(ctx)
 	if status != priority_channels.ReceiveSuccess {
 		return getZero[T](), "", status
 	}
