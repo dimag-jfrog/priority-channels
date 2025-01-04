@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"sort"
-	"time"
 
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
@@ -67,26 +66,19 @@ func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
 }
 
 func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
-	for nextPriorityChannelIndex := 0; nextPriorityChannelIndex < len(pc.channels); nextPriorityChannelIndex++ {
-		selectCases := pc.prepareSelectCases(ctx, nextPriorityChannelIndex, withDefaultCase)
-		chosen, recv, recvOk := reflect.Select(selectCases)
-		if chosen == 0 {
-			// context of the priority channel is done
-			return getZero[T](), "", ReceiveChannelClosed
-		}
-		if chosen == 1 {
-			// context of the specific request is done
-			return getZero[T](), "", ReceiveContextCancelled
-		}
-		isLastIteration := nextPriorityChannelIndex == len(pc.channels)-1
-		if chosen == len(selectCases)-1 {
-			if !isLastIteration {
-				// Default case - go to next iteration to increase the range of allowed minimal priority channels
-				// on last iteration - blocking wait on all receive channels without default case
-				continue
-			} else if withDefaultCase {
-				return getZero[T](), "", ReceiveDefaultCase
-			}
+	lastPriorityChannelIndex := len(pc.channels) - 1
+	for currPriorityChannelIndex := 0; currPriorityChannelIndex <= lastPriorityChannelIndex; currPriorityChannelIndex++ {
+		chosen, recv, recvOk, selectStatus := selectCasesOfNextIteration(
+			pc.ctx,
+			ctx,
+			pc.prepareSelectCases,
+			currPriorityChannelIndex,
+			lastPriorityChannelIndex,
+			withDefaultCase)
+		if selectStatus == ReceiveStatusUnknown {
+			continue
+		} else if selectStatus != ReceiveSuccess {
+			return getZero[T](), "", selectStatus
 		}
 		channelName := pc.channels[chosen-2].ChannelName()
 		if !recvOk {
@@ -100,31 +92,12 @@ func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Cont
 	return getZero[T](), "", ReceiveStatusUnknown
 }
 
-func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(ctx context.Context, currPriorityChannelIndex int, withDefaultCase bool) []reflect.SelectCase {
+func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(currPriorityChannelIndex int) []reflect.SelectCase {
 	var selectCases []reflect.SelectCase
-	selectCases = append(selectCases, reflect.SelectCase{
-		Dir:  reflect.SelectRecv,
-		Chan: reflect.ValueOf(pc.ctx.Done()),
-	})
-	selectCases = append(selectCases, reflect.SelectCase{
-		Dir:  reflect.SelectRecv,
-		Chan: reflect.ValueOf(ctx.Done()),
-	})
 	for i := 0; i <= currPriorityChannelIndex; i++ {
 		selectCases = append(selectCases, reflect.SelectCase{
 			Dir:  reflect.SelectRecv,
 			Chan: reflect.ValueOf(pc.channels[i].MsgsC()),
-		})
-	}
-	isLastIteration := currPriorityChannelIndex == len(pc.channels)-1
-	if !isLastIteration || withDefaultCase {
-		selectCases = append(selectCases, reflect.SelectCase{
-			// The default option without any sleep did not pass tests
-			// short sleep is needed to guarantee that we do not enter default case when there are still messages
-			// in the deliveries channel that can be retrieved
-			//Dir: reflect.SelectDefault,
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(time.After(100 * time.Microsecond)),
 		})
 	}
 	return selectCases

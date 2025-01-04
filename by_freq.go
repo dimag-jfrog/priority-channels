@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"sort"
-	"time"
 
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
@@ -85,26 +84,19 @@ func ProcessMessagesByFrequencyRatio[T any](
 }
 
 func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
-	for numOfBucketsToProcess := 1; numOfBucketsToProcess <= pq.totalBuckets; numOfBucketsToProcess++ {
-		selectCases := pq.prepareSelectCases(ctx, numOfBucketsToProcess)
-		chosen, recv, recvOk := reflect.Select(selectCases)
-		if chosen == 0 {
-			// context of the priority channel is done
-			return getZero[T](), "", ReceiveChannelClosed
-		}
-		if chosen == 1 {
-			// context of the specific request is done
-			return getZero[T](), "", ReceiveContextCancelled
-		}
-		isLastIteration := numOfBucketsToProcess == pq.totalBuckets
-		if chosen == len(selectCases)-1 {
-			if !isLastIteration {
-				// Default case - go to next iteration to increase the range of allowed minimal priority channels
-				// on last iteration - blocking wait on all receive channels without default case
-				continue
-			} else if withDefaultCase {
-				return getZero[T](), "", ReceiveDefaultCase
-			}
+	lastNumberOfBucketsToProcess := pq.totalBuckets
+	for currNumOfBucketsToProcess := 1; currNumOfBucketsToProcess <= lastNumberOfBucketsToProcess; currNumOfBucketsToProcess++ {
+		chosen, recv, recvOk, selectStatus := selectCasesOfNextIteration(
+			pq.ctx,
+			ctx,
+			pq.prepareSelectCases,
+			currNumOfBucketsToProcess,
+			lastNumberOfBucketsToProcess,
+			withDefaultCase)
+		if selectStatus == ReceiveStatusUnknown {
+			continue
+		} else if selectStatus != ReceiveSuccess {
+			return getZero[T](), "", selectStatus
 		}
 		levelIndex, bucketIndex := pq.getLevelAndBucketIndexByChosenChannelIndex(chosen)
 		chosenBucket := pq.levels[levelIndex].Buckets[bucketIndex]
@@ -121,17 +113,9 @@ func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, w
 	return getZero[T](), "", ReceiveStatusUnknown
 }
 
-func (pq *priorityChannelsByFreq[T]) prepareSelectCases(ctx context.Context, numOfBucketsToProcess int) []reflect.SelectCase {
+func (pq *priorityChannelsByFreq[T]) prepareSelectCases(numOfBucketsToProcess int) []reflect.SelectCase {
 	addedBuckets := 0
-	selectCases := make([]reflect.SelectCase, 0, numOfBucketsToProcess+2)
-	selectCases = append(selectCases, reflect.SelectCase{
-		Dir:  reflect.SelectRecv,
-		Chan: reflect.ValueOf(pq.ctx.Done()),
-	})
-	selectCases = append(selectCases, reflect.SelectCase{
-		Dir:  reflect.SelectRecv,
-		Chan: reflect.ValueOf(ctx.Done()),
-	})
+	selectCases := make([]reflect.SelectCase, 0, numOfBucketsToProcess)
 	for _, level := range pq.levels {
 		for _, b := range level.Buckets {
 			selectCases = append(selectCases, reflect.SelectCase{
@@ -146,17 +130,6 @@ func (pq *priorityChannelsByFreq[T]) prepareSelectCases(ctx context.Context, num
 		if addedBuckets == numOfBucketsToProcess {
 			break
 		}
-	}
-	isLastIteration := numOfBucketsToProcess == pq.totalBuckets
-	if !isLastIteration {
-		selectCases = append(selectCases, reflect.SelectCase{
-			// The default option without any sleep did not pass tests
-			// short sleep is needed to guarantee that we do not enter default case when there are still messages
-			// in the deliveries channel that can be retrieved
-			//Dir: reflect.SelectDefault,
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(time.After(100 * time.Microsecond)),
-		})
 	}
 	return selectCases
 }
