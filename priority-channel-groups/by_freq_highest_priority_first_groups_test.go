@@ -12,6 +12,8 @@ import (
 )
 
 func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	msgsChannels := make([]chan *Msg, 4)
 	msgsChannels[0] = make(chan *Msg, 15)
 	msgsChannels[1] = make(chan *Msg, 15)
@@ -20,20 +22,20 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 
 	channels := []priority_channel_groups.PriorityChannelWithFreqRatio[*Msg]{
 		{
-			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg](ctx, []channels.ChannelWithPriority[*Msg]{
 				channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
 				channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
 			}),
 			FreqRatio: 1,
 		},
 		{
-			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg](ctx, []channels.ChannelWithPriority[*Msg]{
 				channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
 			}),
 			FreqRatio: 5,
 		},
 		{
-			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg]([]channels.ChannelWithPriority[*Msg]{
+			PriorityChannel: priority_channels.NewByHighestAlwaysFirst[*Msg](ctx, []channels.ChannelWithPriority[*Msg]{
 				channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
 			}),
 			FreqRatio: 10,
@@ -53,7 +55,6 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	msgProcessor := func(_ context.Context, msg *Msg, channelName string) {
 		results = append(results, msg)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 
 	go priority_channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor)
 
