@@ -3,7 +3,7 @@ package priority_channel_groups
 import (
 	"context"
 
-	priority_channels "github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels"
 )
 
 type msgWithChannelName[T any] struct {
