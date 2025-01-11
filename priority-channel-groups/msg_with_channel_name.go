@@ -2,6 +2,7 @@ package priority_channel_groups
 
 import (
 	"context"
+	"sync"
 
 	"github.com/dimag-jfrog/priority-channels"
 )
@@ -24,37 +25,55 @@ func (pc *priorityChannelOfMsgsWithChannelName[T]) Receive() (msg T, channelName
 }
 
 func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status priority_channels.ReceiveStatus) {
-	msgWithChannelName, _, status := pc.priorityChannel.ReceiveWithContext(ctx)
+	msgWithChannelName, channelName, status := pc.priorityChannel.ReceiveWithContext(ctx)
 	if status != priority_channels.ReceiveSuccess {
-		return getZero[T](), "", status
+		return getZero[T](), channelName, status
 	}
 	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, status
 }
 
 func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithDefaultCase() (msg T, channelName string, status priority_channels.ReceiveStatus) {
-	msgWithChannelName, _, status := pc.priorityChannel.ReceiveWithDefaultCase()
+	msgWithChannelName, channelName, status := pc.priorityChannel.ReceiveWithDefaultCase()
 	if status != priority_channels.ReceiveSuccess {
-		return getZero[T](), msgWithChannelName.ChannelName, status
+		return getZero[T](), channelName, status
 	}
 	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, status
 }
 
-func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, priorityChannel priority_channels.PriorityChannel[T]) <-chan msgWithChannelName[T] {
-	msgWithNameC := make(chan msgWithChannelName[T])
+func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, priorityChannel priority_channels.PriorityChannel[T]) (
+	msgWithNameC <-chan msgWithChannelName[T], fnGetClosedChannelName func() string) {
+
+	resC := make(chan msgWithChannelName[T])
+	var closedChannelName string
+	var mtxClosedChannelName sync.RWMutex
+
 	go func() {
 		for {
-			message, channelName, ok := priorityChannel.Receive()
-			if !ok {
-				break
+			message, channelName, status := priorityChannel.ReceiveWithContext(ctx)
+			if status == priority_channels.ReceiveContextCancelled {
+				return
+			}
+			if status != priority_channels.ReceiveSuccess {
+				mtxClosedChannelName.Lock()
+				closedChannelName = channelName
+				mtxClosedChannelName.Unlock()
+				close(resC)
+				return
 			}
 			select {
 			case <-ctx.Done():
 				return
-			case msgWithNameC <- msgWithChannelName[T]{Msg: message, ChannelName: channelName}:
+			case resC <- msgWithChannelName[T]{Msg: message, ChannelName: channelName}:
 			}
 		}
 	}()
-	return msgWithNameC
+
+	resFnGetClosedChannelName := func() string {
+		mtxClosedChannelName.RLock()
+		defer mtxClosedChannelName.RUnlock()
+		return closedChannelName
+	}
+	return resC, resFnGetClosedChannelName
 }
 
 func getZero[T any]() T {

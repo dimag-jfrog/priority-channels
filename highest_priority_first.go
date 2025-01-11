@@ -42,14 +42,7 @@ func newPriorityChannelByPriority[T any](
 	channelsWithPriorities []channels.ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
 	pq := &priorityChannelsHighestFirst[T]{
 		ctx:      ctx,
-		channels: make([]channels.ChannelWithPriority[T], 0, len(channelsWithPriorities)),
-	}
-
-	for _, q := range channelsWithPriorities {
-		pq.channels = append(pq.channels, channels.NewChannelWithPriority[T](
-			q.ChannelName(),
-			q.MsgsC(),
-			q.Priority()))
+		channels: channelsWithPriorities,
 	}
 	sort.Slice(pq.channels, func(i int, j int) bool {
 		return pq.channels[i].Priority() > pq.channels[j].Priority()
@@ -83,6 +76,9 @@ func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Cont
 		channelName := pc.channels[chosen-2].ChannelName()
 		if !recvOk {
 			// no more messages in channel
+			if c, ok := pc.channels[chosen-2].(ChannelWithUnderlyingClosedChannelName); ok {
+				channelName = c.UnderlyingClosedChannelName()
+			}
 			return getZero[T](), channelName, ReceiveChannelClosed
 		}
 		// Message received successfully

@@ -26,8 +26,9 @@ func newPriorityChannelsGroupByFreqRatio[T any](
 	res := make([]channels.ChannelFreqRatio[msgWithChannelName[T]], 0, len(priorityChannelsWithFreqRatio))
 
 	for _, q := range priorityChannelsWithFreqRatio {
-		msgWithNameC := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
-		res = append(res, channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", msgWithNameC, q.FreqRatio))
+		msgWithNameC, fnGetClosedChanelName := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
+		channel := channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", msgWithNameC, q.FreqRatio)
+		res = append(res, newChannelFreqRatioWithClosedChannelName(channel, fnGetClosedChanelName))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].FreqRatio() > res[j].FreqRatio()
@@ -44,4 +45,32 @@ func ProcessPriorityChannelsByFrequencyRatio[T any](
 		msgProcessor(ctx, msg.Msg, msg.ChannelName)
 	}
 	return priority_channels.ProcessMessagesByFrequencyRatio[msgWithChannelName[T]](ctx, channels, msgProcessorNew)
+}
+
+type channelFreqRatioWithClosedChannelName[T any] struct {
+	channel                channels.ChannelFreqRatio[T]
+	fnGetClosedChannelName func() string
+}
+
+func (c *channelFreqRatioWithClosedChannelName[T]) ChannelName() string {
+	return c.channel.ChannelName()
+}
+
+func (c *channelFreqRatioWithClosedChannelName[T]) MsgsC() <-chan T {
+	return c.channel.MsgsC()
+}
+
+func (c *channelFreqRatioWithClosedChannelName[T]) FreqRatio() int {
+	return c.channel.FreqRatio()
+}
+
+func (c *channelFreqRatioWithClosedChannelName[T]) UnderlyingClosedChannelName() string {
+	return c.fnGetClosedChannelName()
+}
+
+func newChannelFreqRatioWithClosedChannelName[T any](channelWithFreqRatio channels.ChannelFreqRatio[T], fnGetClosedChannelName func() string) channels.ChannelFreqRatio[T] {
+	return &channelFreqRatioWithClosedChannelName[T]{
+		channel:                channelWithFreqRatio,
+		fnGetClosedChannelName: fnGetClosedChannelName,
+	}
 }

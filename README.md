@@ -79,7 +79,7 @@ channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
     channels.NewChannelWithFreqRatio(
         "Low Priority", 
         lowPriorityC,
-        5),
+        1),
 }
 
 // Two possible usage modes
