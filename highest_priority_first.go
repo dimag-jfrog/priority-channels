@@ -79,8 +79,9 @@ func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Cont
 		channelName := pc.channels[chosen-2].ChannelName()
 		if !recvOk {
 			// no more messages in channel
-			if c, ok := pc.channels[chosen-2].(ChannelWithUnderlyingClosedChannelName); ok {
-				channelName = c.UnderlyingClosedChannelName()
+			if c, ok := pc.channels[chosen-2].(ChannelWithUnderlyingClosedChannelDetails); ok {
+				underlyingChannelName, closeStatus := c.GetUnderlyingClosedChannelDetails()
+				return getZero[T](), underlyingChannelName, closeStatus
 			}
 			return getZero[T](), channelName, ReceiveChannelClosed
 		}

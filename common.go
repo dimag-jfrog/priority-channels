@@ -24,6 +24,7 @@ const (
 	ReceiveContextCancelled
 	ReceiveChannelClosed
 	ReceiveDefaultCase
+	ReceivePriorityChannelCancelled
 	ReceiveStatusUnknown
 )
 
@@ -33,6 +34,8 @@ func (r ReceiveStatus) ExitReason() ExitReason {
 		return ContextCancelled
 	case ReceiveChannelClosed:
 		return ChannelClosed
+	case ReceivePriorityChannelCancelled:
+		return PriorityChannelCancelled
 	default:
 		return UnknownExitReason
 	}
@@ -43,11 +46,12 @@ type ExitReason int
 const (
 	ContextCancelled ExitReason = iota
 	ChannelClosed
+	PriorityChannelCancelled
 	UnknownExitReason
 )
 
-type ChannelWithUnderlyingClosedChannelName interface {
-	UnderlyingClosedChannelName() string
+type ChannelWithUnderlyingClosedChannelDetails interface {
+	GetUnderlyingClosedChannelDetails() (channelName string, closeStatus ReceiveStatus)
 }
 
 func processPriorityChannelMessages[T any](
@@ -92,7 +96,7 @@ func (w *wrappedChannel[T]) Receive() (msg T, channelName string, ok bool) {
 func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
-		return getZero[T](), w.channelName, ReceiveChannelClosed
+		return getZero[T](), w.channelName, ReceivePriorityChannelCancelled
 	case <-ctx.Done():
 		return getZero[T](), "", ReceiveContextCancelled
 	case msg, ok := <-w.msgsC:
@@ -106,7 +110,7 @@ func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, chan
 func (w *wrappedChannel[T]) ReceiveWithDefaultCase() (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
-		return getZero[T](), w.channelName, ReceiveChannelClosed
+		return getZero[T](), w.channelName, ReceivePriorityChannelCancelled
 	case msg, ok := <-w.msgsC:
 		if !ok {
 			return getZero[T](), w.channelName, ReceiveChannelClosed
@@ -152,7 +156,7 @@ func selectCasesOfNextIteration(
 	chosen, recv, recvOk = reflect.Select(selectCases)
 	if chosen == 0 {
 		// context of the priority channel is done
-		status = ReceiveChannelClosed
+		status = ReceivePriorityChannelCancelled
 		return
 	}
 	if chosen == 1 {

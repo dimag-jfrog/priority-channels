@@ -112,8 +112,9 @@ func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, w
 		channelName = chosenBucket.ChannelName()
 		if !recvOk {
 			// no more messages in channel
-			if c, ok := chosenBucket.Channel.(ChannelWithUnderlyingClosedChannelName); ok {
-				channelName = c.UnderlyingClosedChannelName()
+			if c, ok := chosenBucket.Channel.(ChannelWithUnderlyingClosedChannelDetails); ok {
+				underlyingChannelName, closeStatus := c.GetUnderlyingClosedChannelDetails()
+				return getZero[T](), underlyingChannelName, closeStatus
 			}
 			return getZero[T](), channelName, ReceiveChannelClosed
 		}
