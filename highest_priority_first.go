@@ -42,7 +42,10 @@ func newPriorityChannelByPriority[T any](
 	channelsWithPriorities []channels.ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
 	pq := &priorityChannelsHighestFirst[T]{
 		ctx:      ctx,
-		channels: channelsWithPriorities,
+		channels: make([]channels.ChannelWithPriority[T], 0, len(channelsWithPriorities)),
+	}
+	for _, c := range channelsWithPriorities {
+		pq.channels = append(pq.channels, c)
 	}
 	sort.Slice(pq.channels, func(i int, j int) bool {
 		return pq.channels[i].Priority() > pq.channels[j].Priority()
