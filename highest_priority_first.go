@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"sort"
+	"sync/atomic"
 
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
@@ -33,8 +34,9 @@ func (pc *priorityChannelsHighestFirst[T]) Context() context.Context {
 }
 
 type priorityChannelsHighestFirst[T any] struct {
-	ctx      context.Context
-	channels []channels.ChannelWithPriority[T]
+	ctx         context.Context
+	channels    []channels.ChannelWithPriority[T]
+	isPreparing atomic.Bool
 }
 
 func newPriorityChannelByPriority[T any](
@@ -62,6 +64,8 @@ func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
 }
 
 func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
+	pc.isPreparing.Store(true)
+	defer pc.isPreparing.Store(false)
 	lastPriorityChannelIndex := len(pc.channels) - 1
 	for currPriorityChannelIndex := 0; currPriorityChannelIndex <= lastPriorityChannelIndex; currPriorityChannelIndex++ {
 		chosen, recv, recvOk, selectStatus := selectCasesOfNextIteration(
@@ -70,7 +74,8 @@ func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Cont
 			pc.prepareSelectCases,
 			currPriorityChannelIndex,
 			lastPriorityChannelIndex,
-			withDefaultCase)
+			withDefaultCase,
+			&pc.isPreparing)
 		if selectStatus == ReceiveStatusUnknown {
 			continue
 		} else if selectStatus != ReceiveSuccess {
@@ -79,8 +84,9 @@ func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Cont
 		channelName := pc.channels[chosen-2].ChannelName()
 		if !recvOk {
 			// no more messages in channel
-			if c, ok := pc.channels[chosen-2].(ChannelWithUnderlyingClosedChannelName); ok {
-				channelName = c.UnderlyingClosedChannelName()
+			if c, ok := pc.channels[chosen-2].(ChannelWithUnderlyingClosedChannelDetails); ok {
+				underlyingChannelName, closeStatus := c.GetUnderlyingClosedChannelDetails()
+				return getZero[T](), underlyingChannelName, closeStatus
 			}
 			return getZero[T](), channelName, ReceiveChannelClosed
 		}
@@ -94,10 +100,15 @@ func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Cont
 func (pc *priorityChannelsHighestFirst[T]) prepareSelectCases(currPriorityChannelIndex int) []reflect.SelectCase {
 	var selectCases []reflect.SelectCase
 	for i := 0; i <= currPriorityChannelIndex; i++ {
+		waitForReadyStatus(pc.channels[i])
 		selectCases = append(selectCases, reflect.SelectCase{
 			Dir:  reflect.SelectRecv,
 			Chan: reflect.ValueOf(pc.channels[i].MsgsC()),
 		})
 	}
 	return selectCases
+}
+
+func (pc *priorityChannelsHighestFirst[T]) IsReady() bool {
+	return pc.isPreparing.Load() == false
 }

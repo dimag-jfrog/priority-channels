@@ -15,9 +15,36 @@ func CombineByHighestPriorityFirst[T any](ctx context.Context, priorityChannelsW
 	}
 }
 
-type PriorityChannelWithPriority[T any] struct {
-	priority_channels.PriorityChannel[T]
-	Priority int
+type PriorityChannelWithPriority[T any] interface {
+	Name() string
+	PriorityChannel() priority_channels.PriorityChannel[T]
+	Priority() int
+}
+
+type priorityChannelWithPriority[T any] struct {
+	name            string
+	priorityChannel priority_channels.PriorityChannel[T]
+	priority        int
+}
+
+func (c *priorityChannelWithPriority[T]) Name() string {
+	return c.name
+}
+
+func (c *priorityChannelWithPriority[T]) PriorityChannel() priority_channels.PriorityChannel[T] {
+	return c.priorityChannel
+}
+
+func (c *priorityChannelWithPriority[T]) Priority() int {
+	return c.priority
+}
+
+func NewPriorityChannelWithPriority[T any](name string, priorityChannel priority_channels.PriorityChannel[T], priority int) PriorityChannelWithPriority[T] {
+	return &priorityChannelWithPriority[T]{
+		name:            name,
+		priorityChannel: priorityChannel,
+		priority:        priority,
+	}
 }
 
 func newPriorityChannelsGroupByHighestPriorityFirst[T any](
@@ -26,9 +53,9 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 	res := make([]channels.ChannelWithPriority[msgWithChannelName[T]], 0, len(priorityChannelsWithPriority))
 
 	for _, q := range priorityChannelsWithPriority {
-		msgWithNameC, fnGetClosedChannelName := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel)
-		channel := channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority)
-		res = append(res, newChannelWithPriorityAndClosedChannelName(channel, fnGetClosedChannelName))
+		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
+		channel := channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority())
+		res = append(res, newChannelWithPriorityAndClosedChannelDetails(channel, fnGetClosedChannelDetails, fnIsReady))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].Priority() > res[j].Priority()
@@ -47,30 +74,39 @@ func ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst[T any](
 	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, msgProcessorNew)
 }
 
-type channelWithPriorityAndClosedChannelName[T any] struct {
-	channel                channels.ChannelWithPriority[T]
-	fnGetClosedChannelName func() string
+type channelWithPriorityAndClosedChannelDetails[T any] struct {
+	channel                   channels.ChannelWithPriority[T]
+	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus)
+	fnIsReady                 func() bool
 }
 
-func (c *channelWithPriorityAndClosedChannelName[T]) ChannelName() string {
+func (c *channelWithPriorityAndClosedChannelDetails[T]) ChannelName() string {
 	return c.channel.ChannelName()
 }
 
-func (c *channelWithPriorityAndClosedChannelName[T]) MsgsC() <-chan T {
+func (c *channelWithPriorityAndClosedChannelDetails[T]) MsgsC() <-chan T {
 	return c.channel.MsgsC()
 }
 
-func (c *channelWithPriorityAndClosedChannelName[T]) Priority() int {
+func (c *channelWithPriorityAndClosedChannelDetails[T]) Priority() int {
 	return c.channel.Priority()
 }
 
-func (c *channelWithPriorityAndClosedChannelName[T]) UnderlyingClosedChannelName() string {
-	return c.fnGetClosedChannelName()
+func (c *channelWithPriorityAndClosedChannelDetails[T]) GetUnderlyingClosedChannelDetails() (string, priority_channels.ReceiveStatus) {
+	return c.fnGetClosedChannelDetails()
 }
 
-func newChannelWithPriorityAndClosedChannelName[T any](channel channels.ChannelWithPriority[T], fnGetClosedChannelName func() string) channels.ChannelWithPriority[T] {
-	return &channelWithPriorityAndClosedChannelName[T]{
-		channel:                channel,
-		fnGetClosedChannelName: fnGetClosedChannelName,
+func (c *channelWithPriorityAndClosedChannelDetails[T]) IsReady() bool {
+	return c.fnIsReady()
+}
+
+func newChannelWithPriorityAndClosedChannelDetails[T any](
+	channel channels.ChannelWithPriority[T],
+	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus),
+	fnIsReady func() bool) channels.ChannelWithPriority[T] {
+	return &channelWithPriorityAndClosedChannelDetails[T]{
+		channel:                   channel,
+		fnGetClosedChannelDetails: fnGetClosedChannelDetails,
+		fnIsReady:                 fnIsReady,
 	}
 }

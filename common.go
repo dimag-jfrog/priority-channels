@@ -3,6 +3,7 @@ package priority_channels
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,6 +25,7 @@ const (
 	ReceiveContextCancelled
 	ReceiveChannelClosed
 	ReceiveDefaultCase
+	ReceivePriorityChannelCancelled
 	ReceiveStatusUnknown
 )
 
@@ -33,6 +35,8 @@ func (r ReceiveStatus) ExitReason() ExitReason {
 		return ContextCancelled
 	case ReceiveChannelClosed:
 		return ChannelClosed
+	case ReceivePriorityChannelCancelled:
+		return PriorityChannelCancelled
 	default:
 		return UnknownExitReason
 	}
@@ -43,11 +47,16 @@ type ExitReason int
 const (
 	ContextCancelled ExitReason = iota
 	ChannelClosed
+	PriorityChannelCancelled
 	UnknownExitReason
 )
 
-type ChannelWithUnderlyingClosedChannelName interface {
-	UnderlyingClosedChannelName() string
+type ChannelWithUnderlyingClosedChannelDetails interface {
+	GetUnderlyingClosedChannelDetails() (channelName string, closeStatus ReceiveStatus)
+}
+
+type ReadinessChecker interface {
+	IsReady() bool
 }
 
 func processPriorityChannelMessages[T any](
@@ -92,7 +101,7 @@ func (w *wrappedChannel[T]) Receive() (msg T, channelName string, ok bool) {
 func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
-		return getZero[T](), w.channelName, ReceiveChannelClosed
+		return getZero[T](), w.channelName, ReceivePriorityChannelCancelled
 	case <-ctx.Done():
 		return getZero[T](), "", ReceiveContextCancelled
 	case msg, ok := <-w.msgsC:
@@ -106,7 +115,7 @@ func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, chan
 func (w *wrappedChannel[T]) ReceiveWithDefaultCase() (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
-		return getZero[T](), w.channelName, ReceiveChannelClosed
+		return getZero[T](), w.channelName, ReceivePriorityChannelCancelled
 	case msg, ok := <-w.msgsC:
 		if !ok {
 			return getZero[T](), w.channelName, ReceiveChannelClosed
@@ -123,7 +132,8 @@ func selectCasesOfNextIteration(
 	fnPrepareChannelsSelectCases func(currIterationIndex int) []reflect.SelectCase,
 	currIterationIndex int,
 	lastIterationIndex int,
-	withDefaultCase bool) (chosen int, recv reflect.Value, recvOk bool, status ReceiveStatus) {
+	withDefaultCase bool,
+	isPreparing *atomic.Bool) (chosen int, recv reflect.Value, recvOk bool, status ReceiveStatus) {
 
 	isLastIteration := currIterationIndex == lastIterationIndex
 	channelsSelectCases := fnPrepareChannelsSelectCases(currIterationIndex)
@@ -147,12 +157,14 @@ func selectCasesOfNextIteration(
 			Dir:  reflect.SelectRecv,
 			Chan: reflect.ValueOf(time.After(100 * time.Microsecond)),
 		})
+	} else {
+		isPreparing.Store(false)
 	}
 
 	chosen, recv, recvOk = reflect.Select(selectCases)
 	if chosen == 0 {
 		// context of the priority channel is done
-		status = ReceiveChannelClosed
+		status = ReceivePriorityChannelCancelled
 		return
 	}
 	if chosen == 1 {
@@ -172,5 +184,17 @@ func selectCasesOfNextIteration(
 		}
 	}
 	status = ReceiveSuccess
+	return
+}
+
+func waitForReadyStatus(ch interface{}) {
+	if ch == nil {
+		return
+	}
+	if checker, ok := ch.(ReadinessChecker); ok {
+		for !checker.IsReady() {
+			time.Sleep(100 * time.Microsecond)
+		}
+	}
 	return
 }

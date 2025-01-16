@@ -40,12 +40,15 @@ func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithDefaultCase() (msg
 	return msgWithChannelName.Msg, msgWithChannelName.ChannelName, status
 }
 
-func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, priorityChannel priority_channels.PriorityChannel[T]) (
-	msgWithNameC <-chan msgWithChannelName[T], fnGetClosedChannelName func() string) {
+func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, name string, priorityChannel priority_channels.PriorityChannel[T]) (
+	msgWithNameC <-chan msgWithChannelName[T],
+	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus),
+	fnIsReady func() bool) {
 
 	resC := make(chan msgWithChannelName[T])
 	var closedChannelName string
-	var mtxClosedChannelName sync.RWMutex
+	var closedChannelStatus priority_channels.ReceiveStatus
+	var mtxClosedChannelDetails sync.RWMutex
 
 	go func() {
 		for {
@@ -54,9 +57,13 @@ func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, pri
 				return
 			}
 			if status != priority_channels.ReceiveSuccess {
-				mtxClosedChannelName.Lock()
+				mtxClosedChannelDetails.Lock()
 				closedChannelName = channelName
-				mtxClosedChannelName.Unlock()
+				if status == priority_channels.ReceivePriorityChannelCancelled && closedChannelName == "" {
+					closedChannelName = name
+				}
+				closedChannelStatus = status
+				mtxClosedChannelDetails.Unlock()
 				close(resC)
 				return
 			}
@@ -68,12 +75,21 @@ func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, pri
 		}
 	}()
 
-	resFnGetClosedChannelName := func() string {
-		mtxClosedChannelName.RLock()
-		defer mtxClosedChannelName.RUnlock()
-		return closedChannelName
+	resFnGetClosedChannelDetails := func() (string, priority_channels.ReceiveStatus) {
+		mtxClosedChannelDetails.RLock()
+		defer mtxClosedChannelDetails.RUnlock()
+		return closedChannelName, closedChannelStatus
 	}
-	return resC, resFnGetClosedChannelName
+	var resFnIsReady func() bool
+	readinessChecker, ok := priorityChannel.(priority_channels.ReadinessChecker)
+	if ok {
+		resFnIsReady = readinessChecker.IsReady
+	} else {
+		resFnIsReady = func() bool {
+			return true
+		}
+	}
+	return resC, resFnGetClosedChannelDetails, resFnIsReady
 }
 
 func getZero[T any]() T {
