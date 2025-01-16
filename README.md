@@ -12,6 +12,7 @@ The following use cases are supported:
 - Channel groups by highest priority first inside group and choose among groups by frequency ratio
 - Channel groups by frequency ratio inside group and choose among groups by highest priority first
 - Channel groups by frequency ratio inside group and choose among groups by frequency ratio
+- Channel groups by highest priority first inside group and choose among groups also by highest priority first
 - Graph of priority channels - any combinations of the above to multiple levels of hierarchy
 
 
