@@ -54,7 +54,7 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 		results = append(results, msg)
 	}
 
-	go priority_channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor)
+	go priority_channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor, priority_channels.FreqRatioOrderedMode())
 
 	time.Sleep(3 * time.Second)
 	cancel()

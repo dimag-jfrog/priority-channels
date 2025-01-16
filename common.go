@@ -53,6 +53,7 @@ const (
 
 type PriorityQueueOptions struct {
 	channelReceiveWaitInterval *time.Duration
+	freqRatioOrderMode FreqRatioOrderMode
 }
 
 const defaultChannelReceiveWaitInterval = 100 * time.Microsecond
@@ -60,6 +61,12 @@ const defaultChannelReceiveWaitInterval = 100 * time.Microsecond
 func ChannelWaitInterval(d time.Duration) func(opt *PriorityQueueOptions) {
 	return func(opt *PriorityQueueOptions) {
 		opt.channelReceiveWaitInterval = &d
+	}
+}
+
+func FreqRatioOrderedMode() func(opt *PriorityQueueOptions) {
+	return func(opt *PriorityQueueOptions) {
+		opt.freqRatioOrderMode = Ordered
 	}
 }
 

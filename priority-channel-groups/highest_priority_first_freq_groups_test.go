@@ -31,7 +31,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 			priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 				channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
-			}),
+			}, priority_channels.FreqRatioOrderedMode()),
 			1),
 		priority_channel_groups.NewPriorityChannelWithPriority[*Msg](
 			"Group 2",
@@ -140,7 +140,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 			priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
 				channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 				channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
-			}),
+			}, priority_channels.FreqRatioOrderedMode()),
 			1),
 		priority_channel_groups.NewPriorityChannelWithPriority[*Msg](
 			"Group 2",
