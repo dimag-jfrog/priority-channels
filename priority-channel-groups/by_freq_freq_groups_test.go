@@ -30,7 +30,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 					"Paying Customer - Low Priority",
 					payingCustomerLowPriorityC,
 					1),
-			}),
+			}, priority_channels.FreqRatioOrderedMode()),
 			10),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio("Free User",
 			priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
@@ -42,11 +42,11 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 					"Free User - Low Priority",
 					freeUserLowPriorityC,
 					1),
-			}),
+			}, priority_channels.FreqRatioOrderedMode()),
 			1),
 	}
 
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio, priority_channels.FreqRatioOrderedMode())
 
 	// sending messages to individual channels
 	go func() {
@@ -225,7 +225,7 @@ func TestProcessMessagesScenario(t *testing.T) {
 			priority_channels.WrapAsPriorityChannel(ctx, "Freq-Ratio-1", freqRatio1Channel),
 			1),
 	}
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio, priority_channels.FreqRatioOrderedMode())
 
 	time.Sleep(1 * time.Millisecond)
 	results := make([]string, 0, 200)

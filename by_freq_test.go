@@ -42,7 +42,7 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor)
+	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor, pc.FreqRatioOrderedMode())
 
 	time.Sleep(3 * time.Second)
 	cancel()
@@ -139,7 +139,7 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor)
+	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor, pc.FreqRatioOrderedMode())
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {

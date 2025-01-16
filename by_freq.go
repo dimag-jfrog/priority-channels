@@ -9,8 +9,10 @@ import (
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewByFrequencyRatio[T any](ctx context.Context, channelsWithFreqRatios []channels.ChannelFreqRatio[T]) PriorityChannel[T] {
-	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios)
+func NewByFrequencyRatio[T any](ctx context.Context,
+	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	options ...func(*PriorityQueueOptions)) PriorityChannel[T] {
+	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios, options...)
 }
 
 func (pc *priorityChannelsByFreq[T]) Receive() (msg T, channelName string, ok bool) {
@@ -56,16 +58,40 @@ type level[T any] struct {
 	Buckets       []*priorityBucket[T]
 }
 
+type FreqRatioOrderMode int
+
+const (
+	Unordered FreqRatioOrderMode = iota
+	Ordered
+)
+
+type PriorityQueueOptions struct {
+	freqRatioOrderMode FreqRatioOrderMode
+}
+
+func FreqRatioOrderedMode() func(opt *PriorityQueueOptions) {
+	return func(opt *PriorityQueueOptions) {
+		opt.freqRatioOrderMode = Ordered
+	}
+}
+
 type priorityChannelsByFreq[T any] struct {
 	ctx          context.Context
 	levels       []*level[T]
 	totalBuckets int
 	isPreparing  atomic.Bool
+	orderMode    FreqRatioOrderMode
 }
 
 func newPriorityChannelByFrequencyRatio[T any](
 	ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
+	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	options ...func(*PriorityQueueOptions)) *priorityChannelsByFreq[T] {
+	pqOptions := &PriorityQueueOptions{}
+	for _, option := range options {
+		option(pqOptions)
+	}
+
 	zeroLevel := &level[T]{}
 	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(channelsWithFreqRatios))
 	for _, q := range channelsWithFreqRatios {
@@ -83,52 +109,77 @@ func newPriorityChannelByFrequencyRatio[T any](
 		ctx:          ctx,
 		levels:       []*level[T]{zeroLevel},
 		totalBuckets: len(channelsWithFreqRatios),
+		orderMode:    pqOptions.freqRatioOrderMode,
 	}
 }
 
 func ProcessMessagesByFrequencyRatio[T any](
 	ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
-	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios)
+	msgProcessor func(ctx context.Context, msg T, channelName string),
+	options ...func(*PriorityQueueOptions)) ExitReason {
+	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios, options...)
 	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 
-func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
+func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (resMsg T, resChannelName string, resStatus ReceiveStatus) {
 	pq.isPreparing.Store(true)
 	defer pq.isPreparing.Store(false)
+
 	lastNumberOfBucketsToProcess := pq.totalBuckets
-	for currNumOfBucketsToProcess := 1; currNumOfBucketsToProcess <= lastNumberOfBucketsToProcess; currNumOfBucketsToProcess++ {
-		chosen, recv, recvOk, selectStatus := selectCasesOfNextIteration(
-			pq.ctx,
-			ctx,
-			pq.prepareSelectCases,
-			currNumOfBucketsToProcess,
-			lastNumberOfBucketsToProcess,
-			withDefaultCase,
-			&pq.isPreparing)
-		if selectStatus == ReceiveStatusUnknown {
-			continue
-		} else if selectStatus != ReceiveSuccess {
-			return getZero[T](), "", selectStatus
-		}
-		levelIndex, bucketIndex := pq.getLevelAndBucketIndexByChosenChannelIndex(chosen)
-		chosenBucket := pq.levels[levelIndex].Buckets[bucketIndex]
-		channelName = chosenBucket.ChannelName()
-		if !recvOk {
-			// no more messages in channel
-			if c, ok := chosenBucket.Channel.(ChannelWithUnderlyingClosedChannelDetails); ok {
-				underlyingChannelName, closeStatus := c.GetUnderlyingClosedChannelDetails()
-				return getZero[T](), underlyingChannelName, closeStatus
+
+	var msg T
+	var channelName string
+	var selectStatus ReceiveStatus
+	if pq.orderMode == Unordered {
+		currNumOfBucketsToProcess := 0
+		for i := 0; i < len(pq.levels); i++ {
+			currNumOfBucketsToProcess += len(pq.levels[i].Buckets)
+			msg, channelName, selectStatus = pq.selectByNumOfBuckets(ctx, withDefaultCase, currNumOfBucketsToProcess, lastNumberOfBucketsToProcess)
+			if selectStatus != ReceiveStatusUnknown {
+				break
 			}
-			return getZero[T](), channelName, ReceiveChannelClosed
 		}
-		// Message received successfully
-		msg := recv.Interface().(T)
-		pq.updateStateOnReceivingMessageToBucket(levelIndex, bucketIndex)
-		return msg, channelName, ReceiveSuccess
+	} else {
+		for currNumOfBucketsToProcess := 1; currNumOfBucketsToProcess <= lastNumberOfBucketsToProcess; currNumOfBucketsToProcess++ {
+			msg, channelName, selectStatus = pq.selectByNumOfBuckets(ctx, withDefaultCase, currNumOfBucketsToProcess, lastNumberOfBucketsToProcess)
+			if selectStatus != ReceiveStatusUnknown {
+				break
+			}
+		}
 	}
-	return getZero[T](), "", ReceiveStatusUnknown
+	return msg, channelName, selectStatus
+}
+
+func (pq *priorityChannelsByFreq[T]) selectByNumOfBuckets(ctx context.Context, withDefaultCase bool,
+	currNumOfBucketsToProcess int,
+	lastNumberOfBucketsToProcess int) (resMsg T, resChannelName string, resStatus ReceiveStatus) {
+	chosen, recv, recvOk, selectStatus := selectCasesOfNextIteration(
+		pq.ctx,
+		ctx,
+		pq.prepareSelectCases,
+		currNumOfBucketsToProcess,
+		lastNumberOfBucketsToProcess,
+		withDefaultCase,
+		&pq.isPreparing)
+	if selectStatus != ReceiveSuccess {
+		return getZero[T](), "", selectStatus
+	}
+	levelIndex, bucketIndex := pq.getLevelAndBucketIndexByChosenChannelIndex(chosen)
+	chosenBucket := pq.levels[levelIndex].Buckets[bucketIndex]
+	channelName := chosenBucket.ChannelName()
+	if !recvOk {
+		// no more messages in channel
+		if c, ok := chosenBucket.Channel.(ChannelWithUnderlyingClosedChannelDetails); ok {
+			underlyingChannelName, closeStatus := c.GetUnderlyingClosedChannelDetails()
+			return getZero[T](), underlyingChannelName, closeStatus
+		}
+		return getZero[T](), channelName, ReceiveChannelClosed
+	}
+	// Message received successfully
+	msg := recv.Interface().(T)
+	pq.updateStateOnReceivingMessageToBucket(levelIndex, bucketIndex)
+	return msg, channelName, ReceiveSuccess
 }
 
 func (pq *priorityChannelsByFreq[T]) prepareSelectCases(numOfBucketsToProcess int) []reflect.SelectCase {
