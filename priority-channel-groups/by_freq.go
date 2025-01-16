@@ -53,9 +53,9 @@ func newPriorityChannelsGroupByFreqRatio[T any](
 	res := make([]channels.ChannelFreqRatio[msgWithChannelName[T]], 0, len(priorityChannelsWithFreqRatio))
 
 	for _, q := range priorityChannelsWithFreqRatio {
-		msgWithNameC, fnGetClosedChannelDetails := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
+		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
 		channel := channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", msgWithNameC, q.FreqRatio())
-		res = append(res, newChannelFreqRatioWithClosedChannelDetails(channel, fnGetClosedChannelDetails))
+		res = append(res, newChannelFreqRatioWithClosedChannelDetails(channel, fnGetClosedChannelDetails, fnIsReady))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].FreqRatio() > res[j].FreqRatio()
@@ -77,6 +77,7 @@ func ProcessPriorityChannelsByFrequencyRatio[T any](
 type channelFreqRatioWithClosedChannelDetails[T any] struct {
 	channel                   channels.ChannelFreqRatio[T]
 	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus)
+	fnIsReady                 func() bool
 }
 
 func (c *channelFreqRatioWithClosedChannelDetails[T]) ChannelName() string {
@@ -95,11 +96,17 @@ func (c *channelFreqRatioWithClosedChannelDetails[T]) GetUnderlyingClosedChannel
 	return c.fnGetClosedChannelDetails()
 }
 
+func (c *channelFreqRatioWithClosedChannelDetails[T]) IsReady() bool {
+	return c.fnIsReady()
+}
+
 func newChannelFreqRatioWithClosedChannelDetails[T any](
 	channelWithFreqRatio channels.ChannelFreqRatio[T],
-	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus)) channels.ChannelFreqRatio[T] {
+	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus),
+	fnIsReady func() bool) channels.ChannelFreqRatio[T] {
 	return &channelFreqRatioWithClosedChannelDetails[T]{
 		channel:                   channelWithFreqRatio,
 		fnGetClosedChannelDetails: fnGetClosedChannelDetails,
+		fnIsReady:                 fnIsReady,
 	}
 }

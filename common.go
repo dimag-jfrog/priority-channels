@@ -3,6 +3,7 @@ package priority_channels
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"time"
 )
 
@@ -52,6 +53,10 @@ const (
 
 type ChannelWithUnderlyingClosedChannelDetails interface {
 	GetUnderlyingClosedChannelDetails() (channelName string, closeStatus ReceiveStatus)
+}
+
+type ReadinessChecker interface {
+	IsReady() bool
 }
 
 func processPriorityChannelMessages[T any](
@@ -127,7 +132,8 @@ func selectCasesOfNextIteration(
 	fnPrepareChannelsSelectCases func(currIterationIndex int) []reflect.SelectCase,
 	currIterationIndex int,
 	lastIterationIndex int,
-	withDefaultCase bool) (chosen int, recv reflect.Value, recvOk bool, status ReceiveStatus) {
+	withDefaultCase bool,
+	isPreparing *atomic.Bool) (chosen int, recv reflect.Value, recvOk bool, status ReceiveStatus) {
 
 	isLastIteration := currIterationIndex == lastIterationIndex
 	channelsSelectCases := fnPrepareChannelsSelectCases(currIterationIndex)
@@ -151,6 +157,8 @@ func selectCasesOfNextIteration(
 			Dir:  reflect.SelectRecv,
 			Chan: reflect.ValueOf(time.After(100 * time.Microsecond)),
 		})
+	} else {
+		isPreparing.Store(false)
 	}
 
 	chosen, recv, recvOk = reflect.Select(selectCases)
@@ -176,5 +184,17 @@ func selectCasesOfNextIteration(
 		}
 	}
 	status = ReceiveSuccess
+	return
+}
+
+func waitForReadyStatus(ch interface{}) {
+	if ch == nil {
+		return
+	}
+	if checker, ok := ch.(ReadinessChecker); ok {
+		for !checker.IsReady() {
+			time.Sleep(100 * time.Microsecond)
+		}
+	}
 	return
 }

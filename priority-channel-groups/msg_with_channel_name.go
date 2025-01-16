@@ -41,7 +41,9 @@ func (pc *priorityChannelOfMsgsWithChannelName[T]) ReceiveWithDefaultCase() (msg
 }
 
 func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, name string, priorityChannel priority_channels.PriorityChannel[T]) (
-	msgWithNameC <-chan msgWithChannelName[T], fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus)) {
+	msgWithNameC <-chan msgWithChannelName[T],
+	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus),
+	fnIsReady func() bool) {
 
 	resC := make(chan msgWithChannelName[T])
 	var closedChannelName string
@@ -78,7 +80,16 @@ func processPriorityChannelToMsgsWithChannelName[T any](ctx context.Context, nam
 		defer mtxClosedChannelDetails.RUnlock()
 		return closedChannelName, closedChannelStatus
 	}
-	return resC, resFnGetClosedChannelDetails
+	var resFnIsReady func() bool
+	readinessChecker, ok := priorityChannel.(priority_channels.ReadinessChecker)
+	if ok {
+		resFnIsReady = readinessChecker.IsReady
+	} else {
+		resFnIsReady = func() bool {
+			return true
+		}
+	}
+	return resC, resFnGetClosedChannelDetails, resFnIsReady
 }
 
 func getZero[T any]() T {

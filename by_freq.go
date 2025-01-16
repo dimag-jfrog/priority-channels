@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"sort"
+	"sync/atomic"
 
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
@@ -59,6 +60,7 @@ type priorityChannelsByFreq[T any] struct {
 	ctx          context.Context
 	levels       []*level[T]
 	totalBuckets int
+	isPreparing  atomic.Bool
 }
 
 func newPriorityChannelByFrequencyRatio[T any](
@@ -93,6 +95,8 @@ func ProcessMessagesByFrequencyRatio[T any](
 }
 
 func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {
+	pq.isPreparing.Store(true)
+	defer pq.isPreparing.Store(false)
 	lastNumberOfBucketsToProcess := pq.totalBuckets
 	for currNumOfBucketsToProcess := 1; currNumOfBucketsToProcess <= lastNumberOfBucketsToProcess; currNumOfBucketsToProcess++ {
 		chosen, recv, recvOk, selectStatus := selectCasesOfNextIteration(
@@ -101,7 +105,8 @@ func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, w
 			pq.prepareSelectCases,
 			currNumOfBucketsToProcess,
 			lastNumberOfBucketsToProcess,
-			withDefaultCase)
+			withDefaultCase,
+			&pq.isPreparing)
 		if selectStatus == ReceiveStatusUnknown {
 			continue
 		} else if selectStatus != ReceiveSuccess {
@@ -131,6 +136,7 @@ func (pq *priorityChannelsByFreq[T]) prepareSelectCases(numOfBucketsToProcess in
 	selectCases := make([]reflect.SelectCase, 0, numOfBucketsToProcess)
 	for _, level := range pq.levels {
 		for _, b := range level.Buckets {
+			waitForReadyStatus(b.Channel)
 			selectCases = append(selectCases, reflect.SelectCase{
 				Dir:  reflect.SelectRecv,
 				Chan: reflect.ValueOf(b.MsgsC()),
@@ -215,4 +221,8 @@ func (pq *priorityChannelsByFreq[T]) moveBucketToNextLevel(levelIndex int, bucke
 	nextLevel.Buckets = append(nextLevel.Buckets, &priorityBucket[T]{})
 	copy(nextLevel.Buckets[i+1:], nextLevel.Buckets[i:])
 	nextLevel.Buckets[i] = chosenBucket
+}
+
+func (pc *priorityChannelsByFreq[T]) IsReady() bool {
+	return pc.isPreparing.Load() == false
 }

@@ -53,9 +53,9 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 	res := make([]channels.ChannelWithPriority[msgWithChannelName[T]], 0, len(priorityChannelsWithPriority))
 
 	for _, q := range priorityChannelsWithPriority {
-		msgWithNameC, fnGetClosedChannelDetails := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
+		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
 		channel := channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority())
-		res = append(res, newChannelWithPriorityAndClosedChannelDetails(channel, fnGetClosedChannelDetails))
+		res = append(res, newChannelWithPriorityAndClosedChannelDetails(channel, fnGetClosedChannelDetails, fnIsReady))
 	}
 	sort.Slice(res, func(i int, j int) bool {
 		return res[i].Priority() > res[j].Priority()
@@ -77,6 +77,7 @@ func ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst[T any](
 type channelWithPriorityAndClosedChannelDetails[T any] struct {
 	channel                   channels.ChannelWithPriority[T]
 	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus)
+	fnIsReady                 func() bool
 }
 
 func (c *channelWithPriorityAndClosedChannelDetails[T]) ChannelName() string {
@@ -95,11 +96,17 @@ func (c *channelWithPriorityAndClosedChannelDetails[T]) GetUnderlyingClosedChann
 	return c.fnGetClosedChannelDetails()
 }
 
+func (c *channelWithPriorityAndClosedChannelDetails[T]) IsReady() bool {
+	return c.fnIsReady()
+}
+
 func newChannelWithPriorityAndClosedChannelDetails[T any](
 	channel channels.ChannelWithPriority[T],
-	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus)) channels.ChannelWithPriority[T] {
+	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus),
+	fnIsReady func() bool) channels.ChannelWithPriority[T] {
 	return &channelWithPriorityAndClosedChannelDetails[T]{
 		channel:                   channel,
 		fnGetClosedChannelDetails: fnGetClosedChannelDetails,
+		fnIsReady:                 fnIsReady,
 	}
 }

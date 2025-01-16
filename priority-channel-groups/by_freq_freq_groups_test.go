@@ -84,7 +84,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 		}
 		fmt.Printf("%s: %s\n", channelName, message)
 		results = append(results, fmt.Sprintf("%s: %s", channelName, message))
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 	}
 
 	expectedResults := []string{
@@ -177,6 +177,86 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 		if results[i] != expectedResults[i] {
 			t.Errorf("Result %d: Expected message %s, but got %s",
 				i, expectedResults[i], results[i])
+		}
+	}
+}
+
+func TestProcessMessagesScenario(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	channelsNum := 200
+	allChannels := make([]chan string, channelsNum)
+	for i := range allChannels {
+		allChannels[i] = make(chan string)
+	}
+	allHighestPriorityFirstChannels := make([]channels.ChannelWithPriority[string], channelsNum)
+	for i := range allChannels {
+		allHighestPriorityFirstChannels[i] = channels.NewChannelWithPriority(
+			fmt.Sprintf("Channel %d", i),
+			allChannels[i],
+			channelsNum-i)
+	}
+	freqRatio1Channel := make(chan string)
+
+	// sending messages to individual channels
+	go func() {
+		for i := 1; i <= 100; i++ {
+			allChannels[len(allChannels)-1] <- fmt.Sprintf("Freq-Ratio-9 - lowest priority message %d", i)
+		}
+	}()
+	go func() {
+		for i := 1; i <= 100; i++ {
+			freqRatio1Channel <- fmt.Sprintf("Freq-Ratio-1 - message %d", i)
+		}
+	}()
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		cancel()
+	}()
+
+	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
+		priority_channel_groups.NewPriorityChannelWithFreqRatio(
+			"Freq-Ratio-9",
+			priority_channels.NewByHighestAlwaysFirst[string](ctx, allHighestPriorityFirstChannels),
+			9),
+		priority_channel_groups.NewPriorityChannelWithFreqRatio(
+			"Freq-Ratio-1",
+			priority_channels.WrapAsPriorityChannel(ctx, "Freq-Ratio-1", freqRatio1Channel),
+			1),
+	}
+	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+
+	time.Sleep(1 * time.Millisecond)
+	results := make([]string, 0, 200)
+	for {
+		message, channelName, ok := ch.Receive()
+		if !ok {
+			break
+		}
+		fmt.Printf("%s\n", message)
+		results = append(results, channelName)
+		time.Sleep(100 * time.Microsecond)
+	}
+	if len(results) != 200 {
+		t.Fatalf("Expected 200 results, but got %d", len(results))
+	}
+
+	for i := 1; i <= 110; i++ {
+		if i%10 == 0 {
+			if results[i-1] != "Freq-Ratio-1" {
+				t.Errorf("Expected message %d to be from Channel 'Freq-Ratio-1', but got %s", i, results[i-1])
+			}
+		} else if results[i-1] != "Channel 199" {
+			t.Errorf("Expected message %d to be from Channel 'Channel 199', but got %s", i, results[i-1])
+		}
+	}
+	if results[110] != "Channel 199" {
+		t.Errorf("Expected message %d to be from Channel 'Channel 199', but got %s", 111, results[110])
+	}
+	for i := 112; i <= 200; i++ {
+		if results[i-1] != "Freq-Ratio-1" {
+			t.Errorf("Expected message %d to be from Channel 'Freq-Ratio-1', but got %s", i, results[i-1])
 		}
 	}
 }
