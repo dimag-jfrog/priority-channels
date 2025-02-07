@@ -51,6 +51,9 @@ const (
 	UnknownExitReason
 )
 
+type PriorityQueueOptions struct {
+}
+
 type ChannelWithUnderlyingClosedChannelDetails interface {
 	GetUnderlyingClosedChannelDetails() (channelName string, closeStatus ReceiveStatus)
 }

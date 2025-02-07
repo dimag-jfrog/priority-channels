@@ -9,8 +9,10 @@ import (
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewByHighestAlwaysFirst[T any](ctx context.Context, channelsWithPriorities []channels.ChannelWithPriority[T]) PriorityChannel[T] {
-	return newPriorityChannelByPriority[T](ctx, channelsWithPriorities)
+func NewByHighestAlwaysFirst[T any](ctx context.Context,
+	channelsWithPriorities []channels.ChannelWithPriority[T],
+	options ...func(*PriorityQueueOptions)) PriorityChannel[T] {
+	return newPriorityChannelByPriority[T](ctx, channelsWithPriorities, options...)
 }
 
 func (pc *priorityChannelsHighestFirst[T]) Receive() (msg T, channelName string, ok bool) {
@@ -41,7 +43,13 @@ type priorityChannelsHighestFirst[T any] struct {
 
 func newPriorityChannelByPriority[T any](
 	ctx context.Context,
-	channelsWithPriorities []channels.ChannelWithPriority[T]) *priorityChannelsHighestFirst[T] {
+	channelsWithPriorities []channels.ChannelWithPriority[T],
+	options ...func(*PriorityQueueOptions)) *priorityChannelsHighestFirst[T] {
+	pqOptions := &PriorityQueueOptions{}
+	for _, option := range options {
+		option(pqOptions)
+	}
+
 	pq := &priorityChannelsHighestFirst[T]{
 		ctx:      ctx,
 		channels: make([]channels.ChannelWithPriority[T], 0, len(channelsWithPriorities)),
@@ -58,8 +66,9 @@ func newPriorityChannelByPriority[T any](
 func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
 	ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
-	pq := newPriorityChannelByPriority(ctx, channelsWithPriorities)
+	msgProcessor func(ctx context.Context, msg T, channelName string),
+	options ...func(*PriorityQueueOptions)) ExitReason {
+	pq := newPriorityChannelByPriority(ctx, channelsWithPriorities, options...)
 	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 

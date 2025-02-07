@@ -9,8 +9,10 @@ import (
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func NewByFrequencyRatio[T any](ctx context.Context, channelsWithFreqRatios []channels.ChannelFreqRatio[T]) PriorityChannel[T] {
-	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios)
+func NewByFrequencyRatio[T any](ctx context.Context,
+	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	options ...func(*PriorityQueueOptions)) PriorityChannel[T] {
+	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios, options...)
 }
 
 func (pc *priorityChannelsByFreq[T]) Receive() (msg T, channelName string, ok bool) {
@@ -65,7 +67,13 @@ type priorityChannelsByFreq[T any] struct {
 
 func newPriorityChannelByFrequencyRatio[T any](
 	ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelFreqRatio[T]) *priorityChannelsByFreq[T] {
+	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	options ...func(*PriorityQueueOptions)) *priorityChannelsByFreq[T] {
+	pqOptions := &PriorityQueueOptions{}
+	for _, option := range options {
+		option(pqOptions)
+	}
+
 	zeroLevel := &level[T]{}
 	zeroLevel.Buckets = make([]*priorityBucket[T], 0, len(channelsWithFreqRatios))
 	for _, q := range channelsWithFreqRatios {
@@ -89,8 +97,9 @@ func newPriorityChannelByFrequencyRatio[T any](
 func ProcessMessagesByFrequencyRatio[T any](
 	ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
-	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios)
+	msgProcessor func(ctx context.Context, msg T, channelName string),
+	options ...func(*PriorityQueueOptions)) ExitReason {
+	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios, options...)
 	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 

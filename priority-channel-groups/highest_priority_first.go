@@ -8,10 +8,12 @@ import (
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
 
-func CombineByHighestPriorityFirst[T any](ctx context.Context, priorityChannelsWithPriority []PriorityChannelWithPriority[T]) priority_channels.PriorityChannel[T] {
+func CombineByHighestPriorityFirst[T any](ctx context.Context,
+	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
+	options ...func(*priority_channels.PriorityQueueOptions)) priority_channels.PriorityChannel[T] {
 	channels := newPriorityChannelsGroupByHighestPriorityFirst[T](ctx, priorityChannelsWithPriority)
 	return &priorityChannelOfMsgsWithChannelName[T]{
-		priorityChannel: priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels),
+		priorityChannel: priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, options...),
 	}
 }
 
@@ -66,12 +68,14 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 func ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst[T any](
 	ctx context.Context,
 	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string)) priority_channels.ExitReason {
+	msgProcessor func(ctx context.Context, msg T, channelName string),
+	options ...func(*priority_channels.PriorityQueueOptions)) priority_channels.ExitReason {
 	channels := newPriorityChannelsGroupByHighestPriorityFirst(ctx, priorityChannelsWithPriority)
 	msgProcessorNew := func(_ context.Context, msg msgWithChannelName[T], channelName string) {
 		msgProcessor(ctx, msg.Msg, msg.ChannelName)
 	}
-	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, msgProcessorNew)
+	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx,
+		channels, msgProcessorNew, options...)
 }
 
 type channelWithPriorityAndClosedChannelDetails[T any] struct {
