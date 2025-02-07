@@ -31,8 +31,6 @@ const (
 
 func (r ReceiveStatus) ExitReason() ExitReason {
 	switch r {
-	case ReceiveContextCancelled:
-		return ContextCancelled
 	case ReceiveChannelClosed:
 		return ChannelClosed
 	case ReceivePriorityChannelCancelled:
@@ -45,8 +43,7 @@ func (r ReceiveStatus) ExitReason() ExitReason {
 type ExitReason int
 
 const (
-	ContextCancelled ExitReason = iota
-	ChannelClosed
+	ChannelClosed ExitReason = iota
 	PriorityChannelCancelled
 	UnknownExitReason
 )
