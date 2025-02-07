@@ -103,6 +103,88 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
 	}
 }
 
+func TestProcessMessagesByPriorityWithHighestAlwaysFirst_CustomWaitInterval(t *testing.T) {
+	ctx := context.Background()
+
+	highPriorityC := make(chan string)
+	normalPriorityC := make(chan string)
+	lowPriorityC := make(chan string)
+
+	// sending messages to individual channels
+	go func() {
+		for i := 1; i <= 5; i++ {
+			// Simulating high priority messages arriving at a slower rate
+			time.Sleep(500 * time.Microsecond)
+			highPriorityC <- fmt.Sprintf("high priority message %d", i)
+		}
+	}()
+	go func() {
+		for i := 1; i <= 5; i++ {
+			normalPriorityC <- fmt.Sprintf("normal priority message %d", i)
+		}
+	}()
+	go func() {
+		for i := 1; i <= 5; i++ {
+			lowPriorityC <- fmt.Sprintf("low priority message %d", i)
+		}
+	}()
+
+	channelsWithPriority := []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"High Priority",
+			highPriorityC,
+			10),
+		channels.NewChannelWithPriority(
+			"Normal Priority",
+			normalPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Low Priority",
+			lowPriorityC,
+			3),
+	}
+	var results []string
+	msgProcessor := func(_ context.Context, msg string, channelName string) {
+		//fmt.Printf("%s: %s\n", channelName, msg)
+		results = append(results, msg)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go pc.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channelsWithPriority, msgProcessor,
+		pc.ChannelWaitInterval(600*time.Microsecond))
+
+	time.Sleep(1 * time.Second)
+	cancel()
+
+	expectedResults := []string{
+		"high priority message 1",
+		"high priority message 2",
+		"high priority message 3",
+		"high priority message 4",
+		"high priority message 5",
+		"normal priority message 1",
+		"normal priority message 2",
+		"normal priority message 3",
+		"normal priority message 4",
+		"normal priority message 5",
+		"low priority message 1",
+		"low priority message 2",
+		"low priority message 3",
+		"low priority message 4",
+		"low priority message 5",
+	}
+
+	if len(results) != len(expectedResults) {
+		t.Errorf("Expected %d results, but got %d", len(expectedResults), len(results))
+	}
+	for i := range results {
+		if results[i] != expectedResults[i] {
+			t.Errorf("Result %d: Expected message %s, but got %s",
+				i, expectedResults[i], results[i])
+		}
+	}
+}
+
 func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChannelsArriveAfterSomeTime(t *testing.T) {
 	msgsChannels := make([]chan *Msg, 3)
 	msgsChannels[0] = make(chan *Msg, 7)

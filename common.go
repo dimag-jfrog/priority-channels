@@ -52,6 +52,15 @@ const (
 )
 
 type PriorityQueueOptions struct {
+	channelReceiveWaitInterval *time.Duration
+}
+
+const defaultChannelReceiveWaitInterval = 100 * time.Microsecond
+
+func ChannelWaitInterval(d time.Duration) func(opt *PriorityQueueOptions) {
+	return func(opt *PriorityQueueOptions) {
+		opt.channelReceiveWaitInterval = &d
+	}
 }
 
 type ChannelWithUnderlyingClosedChannelDetails interface {
@@ -136,7 +145,8 @@ func selectCasesOfNextIteration(
 	currIterationIndex int,
 	lastIterationIndex int,
 	withDefaultCase bool,
-	isPreparing *atomic.Bool) (chosen int, recv reflect.Value, recvOk bool, status ReceiveStatus) {
+	isPreparing *atomic.Bool,
+	channelReceiveWaitInterval *time.Duration) (chosen int, recv reflect.Value, recvOk bool, status ReceiveStatus) {
 
 	isLastIteration := currIterationIndex == lastIterationIndex
 	channelsSelectCases := fnPrepareChannelsSelectCases(currIterationIndex)
@@ -151,17 +161,25 @@ func selectCasesOfNextIteration(
 		Chan: reflect.ValueOf(currRequestContext.Done()),
 	})
 	selectCases = append(selectCases, channelsSelectCases...)
-	if !isLastIteration || withDefaultCase {
-		selectCases = append(selectCases, reflect.SelectCase{
-			// The default option without any sleep did not pass tests
-			// short sleep is needed to guarantee that we do not enter default case when there are still messages
-			// in the deliveries channel that can be retrieved
-			//Dir: reflect.SelectDefault,
-			Dir:  reflect.SelectRecv,
-			Chan: reflect.ValueOf(time.After(100 * time.Microsecond)),
-		})
-	} else {
-		isPreparing.Store(false)
+	if !isLastIteration || withDefaultCase || isPreparing.Load() {
+		waitInterval := defaultChannelReceiveWaitInterval
+		if channelReceiveWaitInterval != nil {
+			waitInterval = *channelReceiveWaitInterval
+		}
+		if waitInterval > 0 {
+			selectCases = append(selectCases, reflect.SelectCase{
+				// The default behavior without a wait interval may not work
+				// if receiving a message from the channel takes some time.
+				// In such cases, a short wait is needed to ensure that the default case
+				// is not triggered while messages are still available in the channel.
+				Dir:  reflect.SelectRecv,
+				Chan: reflect.ValueOf(time.After(waitInterval)),
+			})
+		} else {
+			selectCases = append(selectCases, reflect.SelectCase{
+				Dir: reflect.SelectDefault,
+			})
+		}
 	}
 
 	chosen, recv, recvOk = reflect.Select(selectCases)
@@ -184,6 +202,17 @@ func selectCasesOfNextIteration(
 		} else if withDefaultCase {
 			status = ReceiveDefaultCase
 			return
+		} else if isPreparing.Load() {
+			isPreparing.Store(false)
+			// recursive call for last iteration - this time will issue a blocking wait on all channels
+			return selectCasesOfNextIteration(priorityChannelContext,
+				currRequestContext,
+				fnPrepareChannelsSelectCases,
+				currIterationIndex,
+				lastIterationIndex,
+				withDefaultCase,
+				isPreparing,
+				channelReceiveWaitInterval)
 		}
 	}
 	status = ReceiveSuccess

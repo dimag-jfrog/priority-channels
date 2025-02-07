@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sort"
 	"sync/atomic"
+	"time"
 
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
@@ -59,10 +60,11 @@ type level[T any] struct {
 }
 
 type priorityChannelsByFreq[T any] struct {
-	ctx          context.Context
-	levels       []*level[T]
-	totalBuckets int
-	isPreparing  atomic.Bool
+	ctx                        context.Context
+	levels                     []*level[T]
+	totalBuckets               int
+	isPreparing                atomic.Bool
+	channelReceiveWaitInterval *time.Duration
 }
 
 func newPriorityChannelByFrequencyRatio[T any](
@@ -88,9 +90,10 @@ func newPriorityChannelByFrequencyRatio[T any](
 		return zeroLevel.Buckets[i].Capacity() > zeroLevel.Buckets[j].Capacity()
 	})
 	return &priorityChannelsByFreq[T]{
-		ctx:          ctx,
-		levels:       []*level[T]{zeroLevel},
-		totalBuckets: len(channelsWithFreqRatios),
+		ctx:                        ctx,
+		levels:                     []*level[T]{zeroLevel},
+		totalBuckets:               len(channelsWithFreqRatios),
+		channelReceiveWaitInterval: pqOptions.channelReceiveWaitInterval,
 	}
 }
 
@@ -115,7 +118,8 @@ func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, w
 			currNumOfBucketsToProcess,
 			lastNumberOfBucketsToProcess,
 			withDefaultCase,
-			&pq.isPreparing)
+			&pq.isPreparing,
+			pq.channelReceiveWaitInterval)
 		if selectStatus == ReceiveStatusUnknown {
 			continue
 		} else if selectStatus != ReceiveSuccess {
