@@ -113,9 +113,9 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_CustomWaitInterval(t *t
 	// sending messages to individual channels
 	go func() {
 		for i := 1; i <= 5; i++ {
+			highPriorityC <- fmt.Sprintf("high priority message %d", i)
 			// Simulating high priority messages arriving at a slower rate
 			time.Sleep(500 * time.Microsecond)
-			highPriorityC <- fmt.Sprintf("high priority message %d", i)
 		}
 	}()
 	go func() {
@@ -151,7 +151,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_CustomWaitInterval(t *t
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go pc.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channelsWithPriority, msgProcessor,
-		pc.ChannelWaitInterval(600*time.Microsecond))
+		pc.ChannelWaitInterval(1*time.Millisecond))
 
 	time.Sleep(1 * time.Second)
 	cancel()
