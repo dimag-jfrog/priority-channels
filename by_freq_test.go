@@ -42,7 +42,8 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor)
+	priorityChannel, _ := pc.NewByFrequencyRatio(ctx, channels)
+	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
@@ -139,7 +140,8 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByFrequencyRatio(ctx, channels, msgProcessor)
+	priorityChannel, _ := pc.NewByFrequencyRatio(ctx, channels)
+	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {
@@ -207,7 +209,7 @@ func TestProcessMessagesByFrequencyRatio_ChannelClosed(t *testing.T) {
 
 	close(normalPriorityC)
 
-	ch := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	ch, _ := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
 	for i := 0; i < 3; i++ {
 		message, channelName, status := ch.ReceiveWithContext(context.Background())
 		if status != pc.ReceiveChannelClosed {
@@ -253,7 +255,7 @@ func TestProcessMessagesByFrequencyRatio_ExitOnDefaultCase(t *testing.T) {
 			1),
 	}
 
-	ch := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	ch, _ := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
 
 	message, channelName, status := ch.ReceiveWithDefaultCase()
 	if status != pc.ReceiveDefaultCase {
@@ -287,7 +289,7 @@ func TestProcessMessagesByFrequencyRatio_RequestContextCancelled(t *testing.T) {
 			1),
 	}
 
-	ch := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	ch, _ := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -327,7 +329,7 @@ func TestProcessMessagesByFrequencyRatio_PriorityChannelContextCancelled(t *test
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	ch := pc.NewByFrequencyRatio(ctx, channelsWithFrequencyRatio)
+	ch, _ := pc.NewByFrequencyRatio(ctx, channelsWithFrequencyRatio)
 
 	message, channelName, status := ch.ReceiveWithContext(context.Background())
 	if status != pc.ReceivePriorityChannelCancelled {

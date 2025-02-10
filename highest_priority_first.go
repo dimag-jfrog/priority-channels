@@ -2,6 +2,7 @@ package priority_channels
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sort"
 	"sync/atomic"
@@ -12,8 +13,24 @@ import (
 
 func NewByHighestAlwaysFirst[T any](ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) PriorityChannel[T] {
-	return newPriorityChannelByPriority[T](ctx, channelsWithPriorities, options...)
+	options ...func(*PriorityQueueOptions)) (PriorityChannel[T], error) {
+	if len(channelsWithPriorities) == 0 {
+		return nil, ErrNoChannels
+	}
+	channelNames := make(map[string]struct{})
+	for _, c := range channelsWithPriorities {
+		if c.ChannelName() == "" {
+			return nil, ErrEmptyChannelName
+		}
+		if _, ok := channelNames[c.ChannelName()]; ok {
+			return nil, &DuplicateChannelError{ChannelName: c.ChannelName()}
+		}
+		channelNames[c.ChannelName()] = struct{}{}
+		if c.Priority() < 0 {
+			return nil, fmt.Errorf("channel %s: priority cannot be negative", c.ChannelName())
+		}
+	}
+	return newPriorityChannelByPriority[T](ctx, channelsWithPriorities, options...), nil
 }
 
 func (pc *priorityChannelsHighestFirst[T]) Receive() (msg T, channelName string, ok bool) {
@@ -64,15 +81,6 @@ func newPriorityChannelByPriority[T any](
 		return pq.channels[i].Priority() > pq.channels[j].Priority()
 	})
 	return pq
-}
-
-func ProcessMessagesByPriorityWithHighestAlwaysFirst[T any](
-	ctx context.Context,
-	channelsWithPriorities []channels.ChannelWithPriority[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string),
-	options ...func(*PriorityQueueOptions)) ExitReason {
-	pq := newPriorityChannelByPriority(ctx, channelsWithPriorities, options...)
-	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 
 func (pc *priorityChannelsHighestFirst[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {

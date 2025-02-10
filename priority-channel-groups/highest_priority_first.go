@@ -10,11 +10,13 @@ import (
 
 func CombineByHighestPriorityFirst[T any](ctx context.Context,
 	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
-	options ...func(*priority_channels.PriorityQueueOptions)) priority_channels.PriorityChannel[T] {
+	options ...func(*priority_channels.PriorityQueueOptions)) (priority_channels.PriorityChannel[T], error) {
 	channels := newPriorityChannelsGroupByHighestPriorityFirst[T](ctx, priorityChannelsWithPriority)
-	return &priorityChannelOfMsgsWithChannelName[T]{
-		priorityChannel: priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, options...),
+	priorityChannel, err := priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, options...)
+	if err != nil {
+		return nil, err
 	}
+	return &priorityChannelOfMsgsWithChannelName[T]{priorityChannel: priorityChannel}, nil
 }
 
 type PriorityChannelWithPriority[T any] interface {
@@ -63,19 +65,6 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 		return res[i].Priority() > res[j].Priority()
 	})
 	return res
-}
-
-func ProcessPriorityChannelsByPriorityWithHighestAlwaysFirst[T any](
-	ctx context.Context,
-	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string),
-	options ...func(*priority_channels.PriorityQueueOptions)) priority_channels.ExitReason {
-	channels := newPriorityChannelsGroupByHighestPriorityFirst(ctx, priorityChannelsWithPriority)
-	msgProcessorNew := func(_ context.Context, msg msgWithChannelName[T], channelName string) {
-		msgProcessor(ctx, msg.Msg, msg.ChannelName)
-	}
-	return priority_channels.ProcessMessagesByPriorityWithHighestAlwaysFirst[msgWithChannelName[T]](ctx,
-		channels, msgProcessorNew, options...)
 }
 
 type channelWithPriorityAndClosedChannelDetails[T any] struct {
