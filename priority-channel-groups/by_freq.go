@@ -55,8 +55,8 @@ func newPriorityChannelsGroupByFreqRatio[T any](
 	res := make([]channels.ChannelFreqRatio[msgWithChannelName[T]], 0, len(priorityChannelsWithFreqRatio))
 
 	for _, q := range priorityChannelsWithFreqRatio {
-		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
-		channel := channels.NewChannelWithFreqRatio[msgWithChannelName[T]]("", msgWithNameC, q.FreqRatio())
+		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel())
+		channel := channels.NewChannelWithFreqRatio[msgWithChannelName[T]](q.Name(), msgWithNameC, q.FreqRatio())
 		res = append(res, newChannelFreqRatioWithClosedChannelDetails(channel, fnGetClosedChannelDetails, fnIsReady))
 	}
 	sort.Slice(res, func(i int, j int) bool {

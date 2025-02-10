@@ -61,6 +61,8 @@ func ChannelWaitInterval(d time.Duration) func(opt *PriorityQueueOptions) {
 }
 
 type ChannelWithUnderlyingClosedChannelDetails interface {
+	// An empty channel name indicates that the current channel is closed.
+	// A non-empty channel name indicates that some underlying descendant channel is closed.
 	GetUnderlyingClosedChannelDetails() (channelName string, closeStatus ReceiveStatus)
 }
 

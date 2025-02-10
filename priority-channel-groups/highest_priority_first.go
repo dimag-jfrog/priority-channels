@@ -55,8 +55,8 @@ func newPriorityChannelsGroupByHighestPriorityFirst[T any](
 	res := make([]channels.ChannelWithPriority[msgWithChannelName[T]], 0, len(priorityChannelsWithPriority))
 
 	for _, q := range priorityChannelsWithPriority {
-		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.Name(), q.PriorityChannel())
-		channel := channels.NewChannelWithPriority[msgWithChannelName[T]]("", msgWithNameC, q.Priority())
+		msgWithNameC, fnGetClosedChannelDetails, fnIsReady := processPriorityChannelToMsgsWithChannelName(ctx, q.PriorityChannel())
+		channel := channels.NewChannelWithPriority[msgWithChannelName[T]](q.Name(), msgWithNameC, q.Priority())
 		res = append(res, newChannelWithPriorityAndClosedChannelDetails(channel, fnGetClosedChannelDetails, fnIsReady))
 	}
 	sort.Slice(res, func(i int, j int) bool {
