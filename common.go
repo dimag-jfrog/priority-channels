@@ -2,6 +2,8 @@ package priority_channels
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -28,6 +30,19 @@ const (
 	ReceivePriorityChannelCancelled
 	ReceiveStatusUnknown
 )
+
+var (
+	ErrNoChannels       = errors.New("no channels provided")
+	ErrEmptyChannelName = errors.New("channel name is empty")
+)
+
+type DuplicateChannelError struct {
+	ChannelName string
+}
+
+func (e *DuplicateChannelError) Error() string {
+	return fmt.Sprintf("channel name %s is used more than once", e.ChannelName)
+}
 
 func (r ReceiveStatus) ExitReason() ExitReason {
 	switch r {
@@ -70,8 +85,8 @@ type ReadinessChecker interface {
 	IsReady() bool
 }
 
-func processPriorityChannelMessages[T any](
-	msgReceiver PriorityChannelWithContext[T],
+func ProcessPriorityChannelMessages[T any](
+	msgReceiver PriorityChannel[T],
 	msgProcessor func(ctx context.Context, msg T, channelName string)) ExitReason {
 	for {
 		// There is no context per-message, but there is a single context for the entire priority-channel
@@ -81,7 +96,12 @@ func processPriorityChannelMessages[T any](
 		if status != ReceiveSuccess {
 			return status.ExitReason()
 		}
-		msgProcessor(msgReceiver.Context(), msg, channelName)
+		ctx := context.Background()
+		msgReceiverWithContext, ok := msgReceiver.(PriorityChannelWithContext[T])
+		if ok {
+			ctx = msgReceiverWithContext.Context()
+		}
+		msgProcessor(ctx, msg, channelName)
 	}
 }
 
@@ -90,8 +110,11 @@ func getZero[T any]() T {
 	return result
 }
 
-func WrapAsPriorityChannel[T any](ctx context.Context, channelName string, msgsC <-chan T) PriorityChannel[T] {
-	return &wrappedChannel[T]{ctx: ctx, channelName: channelName, msgsC: msgsC}
+func WrapAsPriorityChannel[T any](ctx context.Context, channelName string, msgsC <-chan T) (PriorityChannel[T], error) {
+	if channelName == "" {
+		return nil, ErrEmptyChannelName
+	}
+	return &wrappedChannel[T]{ctx: ctx, channelName: channelName, msgsC: msgsC}, nil
 }
 
 type wrappedChannel[T any] struct {

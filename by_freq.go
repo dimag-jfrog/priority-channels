@@ -2,6 +2,7 @@ package priority_channels
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sort"
 	"sync/atomic"
@@ -12,8 +13,24 @@ import (
 
 func NewByFrequencyRatio[T any](ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	options ...func(*PriorityQueueOptions)) PriorityChannel[T] {
-	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios, options...)
+	options ...func(*PriorityQueueOptions)) (PriorityChannel[T], error) {
+	if len(channelsWithFreqRatios) == 0 {
+		return nil, ErrNoChannels
+	}
+	channelNames := make(map[string]struct{})
+	for _, c := range channelsWithFreqRatios {
+		if c.ChannelName() == "" {
+			return nil, ErrEmptyChannelName
+		}
+		if _, ok := channelNames[c.ChannelName()]; ok {
+			return nil, &DuplicateChannelError{ChannelName: c.ChannelName()}
+		}
+		channelNames[c.ChannelName()] = struct{}{}
+		if c.FreqRatio() <= 0 {
+			return nil, fmt.Errorf("channel %s: frequency ratio must be greater than 0", c.ChannelName())
+		}
+	}
+	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios, options...), nil
 }
 
 func (pc *priorityChannelsByFreq[T]) Receive() (msg T, channelName string, ok bool) {
@@ -95,15 +112,6 @@ func newPriorityChannelByFrequencyRatio[T any](
 		totalBuckets:               len(channelsWithFreqRatios),
 		channelReceiveWaitInterval: pqOptions.channelReceiveWaitInterval,
 	}
-}
-
-func ProcessMessagesByFrequencyRatio[T any](
-	ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string),
-	options ...func(*PriorityQueueOptions)) ExitReason {
-	pq := newPriorityChannelByFrequencyRatio(ctx, channelsWithFreqRatios, options...)
-	return processPriorityChannelMessages[T](pq, msgProcessor)
 }
 
 func (pq *priorityChannelsByFreq[T]) receiveSingleMessage(ctx context.Context, withDefaultCase bool) (msg T, channelName string, status ReceiveStatus) {

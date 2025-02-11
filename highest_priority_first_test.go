@@ -38,7 +38,8 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
+	priorityChannel, _ := pc.NewByHighestAlwaysFirst(ctx, channels)
+	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
@@ -150,8 +151,8 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_CustomWaitInterval(t *t
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channelsWithPriority, msgProcessor,
-		pc.ChannelWaitInterval(1*time.Millisecond))
+	priorityChannel, _ := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority, pc.ChannelWaitInterval(1*time.Millisecond))
+	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(1 * time.Second)
 	cancel()
@@ -217,7 +218,8 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go pc.ProcessMessagesByPriorityWithHighestAlwaysFirst(ctx, channels, msgProcessor)
+	priorityChannel, _ := pc.NewByHighestAlwaysFirst(ctx, channels)
+	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(1 * time.Second)
 	for j := 6; j <= 7; j++ {
@@ -285,7 +287,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_ChannelClose(t *testing
 
 	close(normalC)
 
-	ch := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	ch, _ := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
 
 	for i := 0; i < 3; i++ {
 		message, channelName, status := ch.ReceiveWithContext(context.Background())
@@ -332,7 +334,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_ExitOnDefaultCase(t *te
 			1),
 	}
 
-	ch := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	ch, _ := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
 
 	message, channelName, status := ch.ReceiveWithDefaultCase()
 	if status != pc.ReceiveDefaultCase {
@@ -366,7 +368,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_RequestContextCancelled
 			1),
 	}
 
-	ch := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	ch, _ := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -405,7 +407,7 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_PriorityChannelContextC
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	ch := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority)
+	ch, _ := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority)
 
 	message, channelName, status := ch.ReceiveWithContext(context.Background())
 	if status != pc.ReceivePriorityChannelCancelled {

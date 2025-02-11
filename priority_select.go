@@ -8,14 +8,22 @@ import (
 
 func Select[T any](ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) (msg T, channelName string, status ReceiveStatus) {
-	pq := NewByHighestAlwaysFirst(context.Background(), channelsWithPriorities, options...)
-	return pq.ReceiveWithContext(ctx)
+	options ...func(*PriorityQueueOptions)) (msg T, channelName string, status ReceiveStatus, err error) {
+	pq, err := NewByHighestAlwaysFirst(context.Background(), channelsWithPriorities, options...)
+	if err != nil {
+		return getZero[T](), "", ReceiveStatusUnknown, err
+	}
+	msg, channelName, status = pq.ReceiveWithContext(ctx)
+	return
 }
 
 func SelectWithDefaultCase[T any](
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) (msg T, channelName string, status ReceiveStatus) {
-	pq := NewByHighestAlwaysFirst(context.Background(), channelsWithPriorities, options...)
-	return pq.ReceiveWithDefaultCase()
+	options ...func(*PriorityQueueOptions)) (msg T, channelName string, status ReceiveStatus, err error) {
+	pq, err := NewByHighestAlwaysFirst(context.Background(), channelsWithPriorities, options...)
+	if err != nil {
+		return getZero[T](), "", ReceiveStatusUnknown, err
+	}
+	msg, channelName, status = pq.ReceiveWithDefaultCase()
+	return
 }

@@ -20,23 +20,29 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
+	group1PriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[*Msg]{
+		channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
+		channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
+	})
+
+	group2PriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[*Msg]{
+		channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
+	})
+
+	group3PriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[*Msg]{
+		channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
+	})
+
 	channels := []priority_channel_groups.PriorityChannelWithFreqRatio[*Msg]{
 		priority_channel_groups.NewPriorityChannelWithFreqRatio("Group 1",
-			priority_channels.NewByHighestAlwaysFirst[*Msg](ctx, []channels.ChannelWithPriority[*Msg]{
-				channels.NewChannelWithPriority("Priority-1", msgsChannels[0], 1),
-				channels.NewChannelWithPriority("Priority-5", msgsChannels[1], 5),
-			}),
+			group1PriorityChannel,
 			1),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio("Group 2",
-			priority_channels.NewByHighestAlwaysFirst[*Msg](ctx, []channels.ChannelWithPriority[*Msg]{
-				channels.NewChannelWithPriority("Priority-10", msgsChannels[2], 10),
-			}),
+			group2PriorityChannel,
 			5,
 		),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio("Group 3",
-			priority_channels.NewByHighestAlwaysFirst[*Msg](ctx, []channels.ChannelWithPriority[*Msg]{
-				channels.NewChannelWithPriority("Priority-1000", msgsChannels[3], 1000),
-			}),
+			group3PriorityChannel,
 			10),
 	}
 
@@ -54,7 +60,8 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups(t *testing.T) 
 		results = append(results, msg)
 	}
 
-	go priority_channel_groups.ProcessPriorityChannelsByFrequencyRatio(ctx, channels, msgProcessor)
+	priorityChannel, _ := priority_channel_groups.CombineByFrequencyRatio(ctx, channels)
+	go priority_channels.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(3 * time.Second)
 	cancel()
@@ -126,35 +133,39 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups_ChannelClosed(
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
+	payingCustomerPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Paying Customer - High Priority",
+			payingCustomerHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Paying Customer - Low Priority",
+			payingCustomerLowPriorityC,
+			1),
+	})
+
+	freeUserPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Free User - High Priority",
+			freeUserHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Free User - Low Priority",
+			freeUserLowPriorityC,
+			1),
+	})
+
 	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Paying Customer",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Paying Customer - High Priority",
-					payingCustomerHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Paying Customer - Low Priority",
-					payingCustomerLowPriorityC,
-					1),
-			}),
+			payingCustomerPriorityChannel,
 			10),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Free User",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Free User - High Priority",
-					freeUserHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Free User - Low Priority",
-					freeUserLowPriorityC,
-					1),
-			}),
+			freeUserPriorityChannel,
 			1),
 	}
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+	ch, _ := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
 	close(freeUserHighPriorityC)
 
@@ -190,35 +201,39 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups_ExitOnDefaultC
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
+	payingCustomerPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Paying Customer - High Priority",
+			payingCustomerHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Paying Customer - Low Priority",
+			payingCustomerLowPriorityC,
+			1),
+	})
+
+	freeUserPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Free User - High Priority",
+			freeUserHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Free User - Low Priority",
+			freeUserLowPriorityC,
+			1),
+	})
+
 	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Paying Customer",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Paying Customer - High Priority",
-					payingCustomerHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Paying Customer - Low Priority",
-					payingCustomerLowPriorityC,
-					1),
-			}),
+			payingCustomerPriorityChannel,
 			10),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Free User",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Free User - High Priority",
-					freeUserHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Free User - Low Priority",
-					freeUserLowPriorityC,
-					1),
-			}),
+			freeUserPriorityChannel,
 			1),
 	}
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+	ch, _ := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
 	message, channelName, status := ch.ReceiveWithDefaultCase()
 	if status != priority_channels.ReceiveDefaultCase {
@@ -239,35 +254,39 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups_RequestContext
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
+	payingCustomerPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Paying Customer - High Priority",
+			payingCustomerHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Paying Customer - Low Priority",
+			payingCustomerLowPriorityC,
+			1),
+	})
+
+	freeUserPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Free User - High Priority",
+			freeUserHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Free User - Low Priority",
+			freeUserLowPriorityC,
+			1),
+	})
+
 	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Paying Customer",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Paying Customer - High Priority",
-					payingCustomerHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Paying Customer - Low Priority",
-					payingCustomerLowPriorityC,
-					1),
-			}),
+			payingCustomerPriorityChannel,
 			10),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Free User",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Free User - High Priority",
-					freeUserHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Free User - Low Priority",
-					freeUserLowPriorityC,
-					1),
-			}),
+			freeUserPriorityChannel,
 			1),
 	}
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+	ch, _ := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
 	ctxWithCancel, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -291,39 +310,43 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups_PriorityChanne
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
+	payingCustomerPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Paying Customer - High Priority",
+			payingCustomerHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Paying Customer - Low Priority",
+			payingCustomerLowPriorityC,
+			1),
+	})
+
+	freeUserPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Free User - High Priority",
+			freeUserHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Free User - Low Priority",
+			freeUserLowPriorityC,
+			1),
+	})
+
 	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Paying Customer",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Paying Customer - High Priority",
-					payingCustomerHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Paying Customer - Low Priority",
-					payingCustomerLowPriorityC,
-					1),
-			}),
+			payingCustomerPriorityChannel,
 			10),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Free User",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Free User - High Priority",
-					freeUserHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Free User - Low Priority",
-					freeUserLowPriorityC,
-					1),
-			}),
+			freeUserPriorityChannel,
 			1),
 	}
 
 	ctxWithCancel, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctxWithCancel, channelsWithFreqRatio)
+	ch, _ := priority_channel_groups.CombineByFrequencyRatio[string](ctxWithCancel, channelsWithFreqRatio)
 
 	message, channelName, status := ch.ReceiveWithContext(ctx)
 	if status != priority_channels.ReceivePriorityChannelCancelled {
@@ -347,36 +370,40 @@ func TestProcessMessagesByFreqRatioAmongHighestFirstChannelGroups_InnerPriorityC
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
+	payingCustomerPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctxWithCancel, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Paying Customer - High Priority",
+			payingCustomerHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Paying Customer - Low Priority",
+			payingCustomerLowPriorityC,
+			1),
+	})
+
+	freeUserPriorityChannel, _ := priority_channels.NewByHighestAlwaysFirst(ctx, []channels.ChannelWithPriority[string]{
+		channels.NewChannelWithPriority(
+			"Free User - High Priority",
+			freeUserHighPriorityC,
+			5),
+		channels.NewChannelWithPriority(
+			"Free User - Low Priority",
+			freeUserLowPriorityC,
+			1),
+	})
+
 	channelsWithFreqRatio := []priority_channel_groups.PriorityChannelWithFreqRatio[string]{
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Paying Customer",
-			priority_channels.NewByHighestAlwaysFirst[string](ctxWithCancel, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Paying Customer - High Priority",
-					payingCustomerHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Paying Customer - Low Priority",
-					payingCustomerLowPriorityC,
-					1),
-			}),
+			payingCustomerPriorityChannel,
 			10),
 		priority_channel_groups.NewPriorityChannelWithFreqRatio[string](
 			"Free User",
-			priority_channels.NewByHighestAlwaysFirst[string](ctx, []channels.ChannelWithPriority[string]{
-				channels.NewChannelWithPriority(
-					"Free User - High Priority",
-					freeUserHighPriorityC,
-					5),
-				channels.NewChannelWithPriority(
-					"Free User - Low Priority",
-					freeUserLowPriorityC,
-					1),
-			}),
+			freeUserPriorityChannel,
 			1),
 	}
 
-	ch := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
+	ch, _ := priority_channel_groups.CombineByFrequencyRatio[string](ctx, channelsWithFreqRatio)
 
 	message, channelName, status := ch.ReceiveWithContext(ctx)
 	if status != priority_channels.ReceivePriorityChannelCancelled {

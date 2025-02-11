@@ -10,11 +10,13 @@ import (
 
 func CombineByFrequencyRatio[T any](ctx context.Context,
 	priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T],
-	options ...func(*priority_channels.PriorityQueueOptions)) priority_channels.PriorityChannel[T] {
+	options ...func(*priority_channels.PriorityQueueOptions)) (priority_channels.PriorityChannel[T], error) {
 	channels := newPriorityChannelsGroupByFreqRatio[T](ctx, priorityChannelsWithFreqRatio)
-	return &priorityChannelOfMsgsWithChannelName[T]{
-		priorityChannel: priority_channels.NewByFrequencyRatio[msgWithChannelName[T]](ctx, channels, options...),
+	priorityChannel, err := priority_channels.NewByFrequencyRatio[msgWithChannelName[T]](ctx, channels, options...)
+	if err != nil {
+		return nil, err
 	}
+	return &priorityChannelOfMsgsWithChannelName[T]{priorityChannel: priorityChannel}, nil
 }
 
 type PriorityChannelWithFreqRatio[T any] interface {
@@ -63,18 +65,6 @@ func newPriorityChannelsGroupByFreqRatio[T any](
 		return res[i].FreqRatio() > res[j].FreqRatio()
 	})
 	return res
-}
-
-func ProcessPriorityChannelsByFrequencyRatio[T any](
-	ctx context.Context,
-	priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T],
-	msgProcessor func(ctx context.Context, msg T, channelName string),
-	options ...func(*priority_channels.PriorityQueueOptions)) priority_channels.ExitReason {
-	channels := newPriorityChannelsGroupByFreqRatio[T](ctx, priorityChannelsWithFreqRatio)
-	msgProcessorNew := func(_ context.Context, msg msgWithChannelName[T], channelName string) {
-		msgProcessor(ctx, msg.Msg, msg.ChannelName)
-	}
-	return priority_channels.ProcessMessagesByFrequencyRatio[msgWithChannelName[T]](ctx, channels, msgProcessorNew, options...)
 }
 
 type channelFreqRatioWithClosedChannelDetails[T any] struct {
