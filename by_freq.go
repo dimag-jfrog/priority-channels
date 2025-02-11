@@ -13,7 +13,7 @@ import (
 
 func NewByFrequencyRatio[T any](ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	options ...func(*PriorityQueueOptions)) (PriorityChannel[T], error) {
+	options ...func(*PriorityChannelOptions)) (PriorityChannel[T], error) {
 	if len(channelsWithFreqRatios) == 0 {
 		return nil, ErrNoChannels
 	}
@@ -87,8 +87,8 @@ type priorityChannelsByFreq[T any] struct {
 func newPriorityChannelByFrequencyRatio[T any](
 	ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
-	options ...func(*PriorityQueueOptions)) *priorityChannelsByFreq[T] {
-	pqOptions := &PriorityQueueOptions{}
+	options ...func(*PriorityChannelOptions)) *priorityChannelsByFreq[T] {
+	pqOptions := &PriorityChannelOptions{}
 	for _, option := range options {
 		option(pqOptions)
 	}

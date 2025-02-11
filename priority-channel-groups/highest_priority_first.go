@@ -10,7 +10,7 @@ import (
 
 func CombineByHighestPriorityFirst[T any](ctx context.Context,
 	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
-	options ...func(*priority_channels.PriorityQueueOptions)) (priority_channels.PriorityChannel[T], error) {
+	options ...func(*priority_channels.PriorityChannelOptions)) (priority_channels.PriorityChannel[T], error) {
 	channels := newPriorityChannelsGroupByHighestPriorityFirst[T](ctx, priorityChannelsWithPriority)
 	priorityChannel, err := priority_channels.NewByHighestAlwaysFirst[msgWithChannelName[T]](ctx, channels, options...)
 	if err != nil {

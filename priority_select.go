@@ -8,7 +8,7 @@ import (
 
 func Select[T any](ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) (msg T, channelName string, status ReceiveStatus, err error) {
+	options ...func(*PriorityChannelOptions)) (msg T, channelName string, status ReceiveStatus, err error) {
 	pq, err := NewByHighestAlwaysFirst(context.Background(), channelsWithPriorities, options...)
 	if err != nil {
 		return getZero[T](), "", ReceiveStatusUnknown, err
@@ -19,7 +19,7 @@ func Select[T any](ctx context.Context,
 
 func SelectWithDefaultCase[T any](
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) (msg T, channelName string, status ReceiveStatus, err error) {
+	options ...func(*PriorityChannelOptions)) (msg T, channelName string, status ReceiveStatus, err error) {
 	pq, err := NewByHighestAlwaysFirst(context.Background(), channelsWithPriorities, options...)
 	if err != nil {
 		return getZero[T](), "", ReceiveStatusUnknown, err

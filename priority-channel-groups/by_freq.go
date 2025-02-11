@@ -10,7 +10,7 @@ import (
 
 func CombineByFrequencyRatio[T any](ctx context.Context,
 	priorityChannelsWithFreqRatio []PriorityChannelWithFreqRatio[T],
-	options ...func(*priority_channels.PriorityQueueOptions)) (priority_channels.PriorityChannel[T], error) {
+	options ...func(*priority_channels.PriorityChannelOptions)) (priority_channels.PriorityChannel[T], error) {
 	channels := newPriorityChannelsGroupByFreqRatio[T](ctx, priorityChannelsWithFreqRatio)
 	priorityChannel, err := priority_channels.NewByFrequencyRatio[msgWithChannelName[T]](ctx, channels, options...)
 	if err != nil {

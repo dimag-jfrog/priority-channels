@@ -13,7 +13,7 @@ import (
 
 func NewByHighestAlwaysFirst[T any](ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) (PriorityChannel[T], error) {
+	options ...func(*PriorityChannelOptions)) (PriorityChannel[T], error) {
 	if len(channelsWithPriorities) == 0 {
 		return nil, ErrNoChannels
 	}
@@ -63,8 +63,8 @@ type priorityChannelsHighestFirst[T any] struct {
 func newPriorityChannelByPriority[T any](
 	ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
-	options ...func(*PriorityQueueOptions)) *priorityChannelsHighestFirst[T] {
-	pqOptions := &PriorityQueueOptions{}
+	options ...func(*PriorityChannelOptions)) *priorityChannelsHighestFirst[T] {
+	pqOptions := &PriorityChannelOptions{}
 	for _, option := range options {
 		option(pqOptions)
 	}

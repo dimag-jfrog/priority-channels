@@ -63,14 +63,14 @@ const (
 	UnknownExitReason
 )
 
-type PriorityQueueOptions struct {
+type PriorityChannelOptions struct {
 	channelReceiveWaitInterval *time.Duration
 }
 
 const defaultChannelReceiveWaitInterval = 100 * time.Microsecond
 
-func ChannelWaitInterval(d time.Duration) func(opt *PriorityQueueOptions) {
-	return func(opt *PriorityQueueOptions) {
+func ChannelWaitInterval(d time.Duration) func(opt *PriorityChannelOptions) {
+	return func(opt *PriorityChannelOptions) {
 		opt.channelReceiveWaitInterval = &d
 	}
 }
