@@ -27,7 +27,7 @@ func (w *wrappedChannel[T]) Receive() (msg T, channelName string, ok bool) {
 func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
-		return getZero[T](), w.channelName, ReceivePriorityChannelCancelled
+		return getZero[T](), "", ReceivePriorityChannelCancelled
 	case <-ctx.Done():
 		return getZero[T](), "", ReceiveContextCancelled
 	case msg, ok := <-w.msgsC:
@@ -41,7 +41,7 @@ func (w *wrappedChannel[T]) ReceiveWithContext(ctx context.Context) (msg T, chan
 func (w *wrappedChannel[T]) ReceiveWithDefaultCase() (msg T, channelName string, status ReceiveStatus) {
 	select {
 	case <-w.ctx.Done():
-		return getZero[T](), w.channelName, ReceivePriorityChannelCancelled
+		return getZero[T](), "", ReceivePriorityChannelCancelled
 	case msg, ok := <-w.msgsC:
 		if !ok {
 			return getZero[T](), w.channelName, ReceiveChannelClosed
