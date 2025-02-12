@@ -101,7 +101,8 @@ payingCustomerLowPriorityC := make(chan string)
 freeUserHighPriorityC := make(chan string)
 freeUserLowPriorityC := make(chan string)
 
-urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, "Urgent Messages", urgentMessagesC)
+urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, 
+    "Urgent Messages", urgentMessagesC)
 if err != nil {
     // handle error
 }
@@ -173,7 +174,8 @@ payingCustomerLowPriorityC := make(chan string)
 freeUserHighPriorityC := make(chan string)
 freeUserLowPriorityC := make(chan string)
 
-urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, "Urgent Messages", urgentMessagesC)
+urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, 
+    "Urgent Messages", urgentMessagesC)
 if err != nil {
     // handle error
 }
@@ -350,7 +352,8 @@ if err != nil {
     // handle error
 }
 
-urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, "Urgent Messages", urgentMessagesC)
+urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, 
+    "Urgent Messages", urgentMessagesC)
 if err != nil {
     // handle error
 }
@@ -697,7 +700,8 @@ func getPriorityChannelByUsagePattern(
             return nil, fmt.Errorf("failed to create combined users and message types priority channel: %v", err)
         }
         
-        urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx, "Urgent Messages", urgentMessagesC)
+        urgentMessagesPriorityChannel, err := priority_channels.WrapAsPriorityChannel(ctx,
+            "Urgent Messages", urgentMessagesC)
         if err != nil {
             return nil, fmt.Errorf("failed to create urgent message priority channel: %v", err) 
         }
