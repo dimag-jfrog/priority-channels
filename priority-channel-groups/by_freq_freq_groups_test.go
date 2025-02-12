@@ -19,7 +19,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -33,7 +33,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups(t *testing.T) {
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -291,7 +291,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups_ChannelClosed(t *
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio(ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -305,7 +305,7 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups_ChannelClosed(t *
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -362,17 +362,17 @@ func TestProcessMessagesByFreqRatioAmongFreqRatioChannelGroups_ChannelClosed(t *
 func TestFreqRatioChannelGroupsValidation(t *testing.T) {
 	var testCases = []struct {
 		Name                   string
-		ChannelsWithFreqRatios []channels.ChannelFreqRatio[string]
+		ChannelsWithFreqRatios []channels.ChannelWithFreqRatio[string]
 		ExpectedErrorMessage   string
 	}{
 		{
 			Name:                   "No channels",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{},
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{},
 			ExpectedErrorMessage:   priority_channels.ErrNoChannels.Error(),
 		},
 		{
 			Name: "Empty channel name",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),
@@ -390,7 +390,7 @@ func TestFreqRatioChannelGroupsValidation(t *testing.T) {
 		},
 		{
 			Name: "Zero frequency ratio value",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),
@@ -408,7 +408,7 @@ func TestFreqRatioChannelGroupsValidation(t *testing.T) {
 		},
 		{
 			Name: "Negative frequency ratio value",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),
@@ -426,7 +426,7 @@ func TestFreqRatioChannelGroupsValidation(t *testing.T) {
 		},
 		{
 			Name: "Duplicate channel name",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),

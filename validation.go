@@ -64,7 +64,7 @@ func convertChannelsWithPrioritiesToChannels[T any](channelsWithPriorities []cha
 	return res
 }
 
-func convertChannelsWithFreqRatiosToChannels[T any](channelsWithFreqRatios []channels.ChannelFreqRatio[T]) []channels.Channel[T] {
+func convertChannelsWithFreqRatiosToChannels[T any](channelsWithFreqRatios []channels.ChannelWithFreqRatio[T]) []channels.Channel[T] {
 	res := make([]channels.Channel[T], 0, len(channelsWithFreqRatios))
 	for _, c := range channelsWithFreqRatios {
 		res = append(res, c)

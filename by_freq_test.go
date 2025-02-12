@@ -22,7 +22,7 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	channels := []channels.ChannelFreqRatio[*Msg]{
+	channels := []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 		channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
 		channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 10),
@@ -117,7 +117,7 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 	msgsChannels[1] = make(chan *Msg, 7)
 	msgsChannels[2] = make(chan *Msg, 7)
 
-	channels := []channels.ChannelFreqRatio[*Msg]{
+	channels := []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 		channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
 		channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 3),
@@ -198,7 +198,7 @@ func TestProcessMessagesByFrequencyRatio_ChannelClosed(t *testing.T) {
 	normalPriorityC := make(chan string)
 	lowPriorityC := make(chan string)
 
-	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+	channelsWithFrequencyRatio := []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"High Priority",
 			highPriorityC,
@@ -249,7 +249,7 @@ func TestProcessMessagesByFrequencyRatio_ExitOnDefaultCase(t *testing.T) {
 	normalPriorityC := make(chan string)
 	lowPriorityC := make(chan string)
 
-	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+	channelsWithFrequencyRatio := []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"High Priority",
 			highPriorityC,
@@ -286,7 +286,7 @@ func TestProcessMessagesByFrequencyRatio_RequestContextCancelled(t *testing.T) {
 	normalPriorityC := make(chan string)
 	lowPriorityC := make(chan string)
 
-	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+	channelsWithFrequencyRatio := []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"High Priority",
 			highPriorityC,
@@ -326,7 +326,7 @@ func TestProcessMessagesByFrequencyRatio_PriorityChannelContextCancelled(t *test
 	normalPriorityC := make(chan string)
 	lowPriorityC := make(chan string)
 
-	channelsWithFrequencyRatio := []channels.ChannelFreqRatio[string]{
+	channelsWithFrequencyRatio := []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"High Priority",
 			highPriorityC,
@@ -364,17 +364,17 @@ func TestProcessMessagesByFrequencyRatio_PriorityChannelContextCancelled(t *test
 func TestByFrequencyRatioPriorityChannelValidation(t *testing.T) {
 	var testCases = []struct {
 		Name                   string
-		ChannelsWithFreqRatios []channels.ChannelFreqRatio[string]
+		ChannelsWithFreqRatios []channels.ChannelWithFreqRatio[string]
 		ExpectedErrorMessage   string
 	}{
 		{
 			Name:                   "No channels",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{},
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{},
 			ExpectedErrorMessage:   pc.ErrNoChannels.Error(),
 		},
 		{
 			Name: "Empty channel name",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),
@@ -392,7 +392,7 @@ func TestByFrequencyRatioPriorityChannelValidation(t *testing.T) {
 		},
 		{
 			Name: "Zero frequency ratio value",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),
@@ -410,7 +410,7 @@ func TestByFrequencyRatioPriorityChannelValidation(t *testing.T) {
 		},
 		{
 			Name: "Negative frequency ratio value",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),
@@ -428,7 +428,7 @@ func TestByFrequencyRatioPriorityChannelValidation(t *testing.T) {
 		},
 		{
 			Name: "Duplicate channel name",
-			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+			ChannelsWithFreqRatios: []channels.ChannelWithFreqRatio[string]{
 				channels.NewChannelWithFreqRatio(
 					"Urgent Messages",
 					make(chan string),

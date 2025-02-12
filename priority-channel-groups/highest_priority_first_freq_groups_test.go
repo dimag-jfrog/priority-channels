@@ -25,20 +25,20 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 15)
 	msgsChannels[3] = make(chan *Msg, 15)
 
-	group1Priority1Channel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
+	group1Priority1Channel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 		channels.NewChannelWithFreqRatio("Priority-5", msgsChannels[1], 5),
 	})
 	if err != nil {
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
-	group2Priority2Channel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
+	group2Priority2Channel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-10", msgsChannels[2], 1),
 	})
 	if err != nil {
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
-	group3PriorityChannel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
+	group3PriorityChannel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-1000", msgsChannels[3], 1),
 	})
 	if err != nil {
@@ -151,14 +151,14 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_MessagesInOneOfThe
 	msgsChannels[1] = make(chan *Msg, 7)
 	msgsChannels[2] = make(chan *Msg, 7)
 
-	group1PriorityChannel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
+	group1PriorityChannel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-1", msgsChannels[0], 1),
 		channels.NewChannelWithFreqRatio("Priority-2", msgsChannels[1], 2),
 	})
 	if err != nil {
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
-	group2PriorityChannel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelFreqRatio[*Msg]{
+	group2PriorityChannel, err := priority_channels.NewByFrequencyRatio[*Msg](ctx, []channels.ChannelWithFreqRatio[*Msg]{
 		channels.NewChannelWithFreqRatio("Priority-3", msgsChannels[2], 1),
 	})
 	if err != nil {
@@ -256,7 +256,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_ChannelClosed(t *t
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -270,7 +270,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_ChannelClosed(t *t
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -332,7 +332,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_ExitOnDefaultCase(
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -346,7 +346,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_ExitOnDefaultCase(
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -392,7 +392,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_RequestContextCanc
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -406,7 +406,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_RequestContextCanc
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -455,7 +455,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_PriorityChannelCon
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -469,7 +469,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_PriorityChannelCon
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -521,7 +521,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_InnerPriorityChann
 	freeUserHighPriorityC := make(chan string)
 	freeUserLowPriorityC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -535,7 +535,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_InnerPriorityChann
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctxWithCancel, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctxWithCancel, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -586,7 +586,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_DeepHierarchy_Inne
 	freeUserLowPriorityC := make(chan string)
 	urgentMessagesC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -600,7 +600,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_DeepHierarchy_Inne
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctxWithCancel, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctxWithCancel, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,
@@ -668,7 +668,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_DeepHierarchy_Chan
 	freeUserLowPriorityC := make(chan string)
 	urgentMessagesC := make(chan string)
 
-	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	payingCustomerPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Paying Customer - High Priority",
 			payingCustomerHighPriorityC,
@@ -682,7 +682,7 @@ func TestProcessMessagesByPriorityAmongFreqRatioChannelGroups_DeepHierarchy_Chan
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
 	}
 
-	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelFreqRatio[string]{
+	freeUserPriorityChannel, err := priority_channels.NewByFrequencyRatio[string](ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Free User - High Priority",
 			freeUserHighPriorityC,

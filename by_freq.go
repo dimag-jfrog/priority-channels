@@ -11,7 +11,7 @@ import (
 )
 
 func NewByFrequencyRatio[T any](ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T],
 	options ...func(*PriorityChannelOptions)) (PriorityChannel[T], error) {
 	if err := validateInputChannels(convertChannelsWithFreqRatiosToChannels(channelsWithFreqRatios)); err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (pc *priorityChannelsByFreq[T]) Context() context.Context {
 }
 
 type priorityBucket[T any] struct {
-	Channel channels.ChannelFreqRatio[T]
+	Channel channels.ChannelWithFreqRatio[T]
 	Value   int
 }
 
@@ -72,7 +72,7 @@ type priorityChannelsByFreq[T any] struct {
 
 func newPriorityChannelByFrequencyRatio[T any](
 	ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
+	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T],
 	options ...func(*PriorityChannelOptions)) *priorityChannelsByFreq[T] {
 	pqOptions := &PriorityChannelOptions{}
 	for _, option := range options {
