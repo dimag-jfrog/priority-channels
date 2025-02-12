@@ -2,7 +2,6 @@ package priority_channels
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"sort"
 	"sync/atomic"
@@ -14,21 +13,8 @@ import (
 func NewByHighestAlwaysFirst[T any](ctx context.Context,
 	channelsWithPriorities []channels.ChannelWithPriority[T],
 	options ...func(*PriorityChannelOptions)) (PriorityChannel[T], error) {
-	if len(channelsWithPriorities) == 0 {
-		return nil, ErrNoChannels
-	}
-	channelNames := make(map[string]struct{})
-	for _, c := range channelsWithPriorities {
-		if c.ChannelName() == "" {
-			return nil, ErrEmptyChannelName
-		}
-		if _, ok := channelNames[c.ChannelName()]; ok {
-			return nil, &DuplicateChannelError{ChannelName: c.ChannelName()}
-		}
-		channelNames[c.ChannelName()] = struct{}{}
-		if c.Priority() < 0 {
-			return nil, fmt.Errorf("channel %s: priority cannot be negative", c.ChannelName())
-		}
+	if err := validateInputChannels(convertChannelsWithPrioritiesToChannels(channelsWithPriorities)); err != nil {
+		return nil, err
 	}
 	return newPriorityChannelByPriority[T](ctx, channelsWithPriorities, options...), nil
 }

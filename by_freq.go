@@ -2,7 +2,6 @@ package priority_channels
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"sort"
 	"sync/atomic"
@@ -14,21 +13,8 @@ import (
 func NewByFrequencyRatio[T any](ctx context.Context,
 	channelsWithFreqRatios []channels.ChannelFreqRatio[T],
 	options ...func(*PriorityChannelOptions)) (PriorityChannel[T], error) {
-	if len(channelsWithFreqRatios) == 0 {
-		return nil, ErrNoChannels
-	}
-	channelNames := make(map[string]struct{})
-	for _, c := range channelsWithFreqRatios {
-		if c.ChannelName() == "" {
-			return nil, ErrEmptyChannelName
-		}
-		if _, ok := channelNames[c.ChannelName()]; ok {
-			return nil, &DuplicateChannelError{ChannelName: c.ChannelName()}
-		}
-		channelNames[c.ChannelName()] = struct{}{}
-		if c.FreqRatio() <= 0 {
-			return nil, fmt.Errorf("channel %s: frequency ratio must be greater than 0", c.ChannelName())
-		}
+	if err := validateInputChannels(convertChannelsWithFreqRatiosToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, err
 	}
 	return newPriorityChannelByFrequencyRatio[T](ctx, channelsWithFreqRatios, options...), nil
 }

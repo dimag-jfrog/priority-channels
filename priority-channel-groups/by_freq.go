@@ -93,6 +93,19 @@ func (c *channelFreqRatioWithClosedChannelDetails[T]) IsReady() bool {
 	return c.fnIsReady()
 }
 
+func (c *channelFreqRatioWithClosedChannelDetails[T]) Validate() error {
+	if err := c.channel.Validate(); err != nil {
+		return err
+	}
+	if c.fnGetClosedChannelDetails == nil {
+		return &priority_channels.FunctionNotSetError{FuncName: "GetUnderlyingClosedChannelDetails"}
+	}
+	if c.fnIsReady == nil {
+		return &priority_channels.FunctionNotSetError{FuncName: "IsReady"}
+	}
+	return nil
+}
+
 func newChannelFreqRatioWithClosedChannelDetails[T any](
 	channelWithFreqRatio channels.ChannelFreqRatio[T],
 	fnGetClosedChannelDetails func() (string, priority_channels.ReceiveStatus),

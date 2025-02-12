@@ -1,8 +1,11 @@
 package channels
 
+import (
+	"errors"
+)
+
 type ChannelFreqRatio[T any] interface {
-	ChannelName() string
-	MsgsC() <-chan T
+	Channel[T]
 	FreqRatio() int
 }
 
@@ -22,6 +25,13 @@ func (c *channelFreqRatio[T]) MsgsC() <-chan T {
 
 func (c *channelFreqRatio[T]) FreqRatio() int {
 	return c.freqRatio
+}
+
+func (c *channelFreqRatio[T]) Validate() error {
+	if c.freqRatio <= 0 {
+		return errors.New("frequency ratio must be greater than 0")
+	}
+	return nil
 }
 
 func NewChannelWithFreqRatio[T any](channelName string, msgsC <-chan T, freqRatio int) ChannelFreqRatio[T] {

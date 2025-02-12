@@ -2,8 +2,6 @@ package priority_channels
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -30,19 +28,6 @@ const (
 	ReceivePriorityChannelCancelled
 	ReceiveStatusUnknown
 )
-
-var (
-	ErrNoChannels       = errors.New("no channels provided")
-	ErrEmptyChannelName = errors.New("channel name is empty")
-)
-
-type DuplicateChannelError struct {
-	ChannelName string
-}
-
-func (e *DuplicateChannelError) Error() string {
-	return fmt.Sprintf("channel name %s is used more than once", e.ChannelName)
-}
 
 func (r ReceiveStatus) ExitReason() ExitReason {
 	switch r {

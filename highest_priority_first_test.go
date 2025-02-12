@@ -38,7 +38,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	priorityChannel, _ := pc.NewByHighestAlwaysFirst(ctx, channels)
+	priorityChannel, err := pc.NewByHighestAlwaysFirst(ctx, channels)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(3 * time.Second)
@@ -151,7 +154,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_CustomWaitInterval(t *t
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	priorityChannel, _ := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority, pc.ChannelWaitInterval(1*time.Millisecond))
+	priorityChannel, err := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority, pc.ChannelWaitInterval(1*time.Millisecond))
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(1 * time.Second)
@@ -218,7 +224,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_MessagesInOneOfTheChann
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	priorityChannel, _ := pc.NewByHighestAlwaysFirst(ctx, channels)
+	priorityChannel, err := pc.NewByHighestAlwaysFirst(ctx, channels)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(1 * time.Second)
@@ -287,7 +296,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_ChannelClose(t *testing
 
 	close(normalC)
 
-	ch, _ := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	ch, err := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 
 	for i := 0; i < 3; i++ {
 		message, channelName, status := ch.ReceiveWithContext(context.Background())
@@ -334,7 +346,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_ExitOnDefaultCase(t *te
 			1),
 	}
 
-	ch, _ := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	ch, err := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 
 	message, channelName, status := ch.ReceiveWithDefaultCase()
 	if status != pc.ReceiveDefaultCase {
@@ -368,7 +383,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_RequestContextCancelled
 			1),
 	}
 
-	ch, _ := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	ch, err := pc.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -407,7 +425,10 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_PriorityChannelContextC
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	ch, _ := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority)
+	ch, err := pc.NewByHighestAlwaysFirst(ctx, channelsWithPriority)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel initialization: %v", err)
+	}
 
 	message, channelName, status := ch.ReceiveWithContext(context.Background())
 	if status != pc.ReceivePriorityChannelCancelled {
@@ -418,5 +439,110 @@ func TestProcessMessagesByPriorityWithHighestAlwaysFirst_PriorityChannelContextC
 	}
 	if message != "" {
 		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestHighestAlwaysFirstPriorityChannelValidation(t *testing.T) {
+	var testCases = []struct {
+		Name                   string
+		ChannelsWithPriorities []channels.ChannelWithPriority[string]
+		ExpectedErrorMessage   string
+	}{
+		{
+			Name:                   "No channels",
+			ChannelsWithPriorities: []channels.ChannelWithPriority[string]{},
+			ExpectedErrorMessage:   pc.ErrNoChannels.Error(),
+		},
+		{
+			Name: "Empty channel name",
+			ChannelsWithPriorities: []channels.ChannelWithPriority[string]{
+				channels.NewChannelWithPriority(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithPriority(
+					"Normal Messages",
+					make(chan string),
+					5),
+				channels.NewChannelWithPriority(
+					"",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: pc.ErrEmptyChannelName.Error(),
+		},
+		{
+			Name: "Zero priority value - No error is expected",
+			ChannelsWithPriorities: []channels.ChannelWithPriority[string]{
+				channels.NewChannelWithPriority(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithPriority(
+					"Normal Messages",
+					make(chan string),
+					0),
+				channels.NewChannelWithPriority(
+					"Low Priority Messages",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: "",
+		},
+		{
+			Name: "Negative priority value",
+			ChannelsWithPriorities: []channels.ChannelWithPriority[string]{
+				channels.NewChannelWithPriority(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithPriority(
+					"Normal Messages",
+					make(chan string),
+					-5),
+				channels.NewChannelWithPriority(
+					"Low Priority Messages",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: "channel 'Normal Messages': priority cannot be negative",
+		},
+		{
+			Name: "Duplicate channel name",
+			ChannelsWithPriorities: []channels.ChannelWithPriority[string]{
+				channels.NewChannelWithPriority(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithPriority(
+					"Normal Messages",
+					make(chan string),
+					5),
+				channels.NewChannelWithPriority(
+					"Urgent Messages",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: "channel name 'Urgent Messages' is used more than once",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx := context.Background()
+			_, err := pc.NewByHighestAlwaysFirst(ctx, tc.ChannelsWithPriorities)
+			if tc.ExpectedErrorMessage == "" {
+				if err != nil {
+					t.Fatalf("Unexpected validation error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("Expected validation error")
+			}
+			if err.Error() != tc.ExpectedErrorMessage {
+				t.Errorf("Expected error %s, but got: %v", tc.ExpectedErrorMessage, err)
+			}
+		})
 	}
 }

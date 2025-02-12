@@ -1,8 +1,17 @@
 package channels
 
-type ChannelWithPriority[T any] interface {
+import (
+	"errors"
+)
+
+type Channel[T any] interface {
 	ChannelName() string
 	MsgsC() <-chan T
+	Validate() error
+}
+
+type ChannelWithPriority[T any] interface {
+	Channel[T]
 	Priority() int
 }
 
@@ -22,6 +31,13 @@ func (c *channelWithPriority[T]) MsgsC() <-chan T {
 
 func (c *channelWithPriority[T]) Priority() int {
 	return c.priority
+}
+
+func (c *channelWithPriority[T]) Validate() error {
+	if c.priority < 0 {
+		return errors.New("priority cannot be negative")
+	}
+	return nil
 }
 
 func NewChannelWithPriority[T any](channelName string, msgsC <-chan T, priority int) ChannelWithPriority[T] {

@@ -42,7 +42,10 @@ func TestProcessMessagesByFrequencyRatio(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	priorityChannel, _ := pc.NewByFrequencyRatio(ctx, channels)
+	priorityChannel, err := pc.NewByFrequencyRatio(ctx, channels)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(3 * time.Second)
@@ -140,7 +143,10 @@ func TestProcessMessagesByFrequencyRatio_MessagesInOneOfTheChannelsArriveAfterSo
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	priorityChannel, _ := pc.NewByFrequencyRatio(ctx, channels)
+	priorityChannel, err := pc.NewByFrequencyRatio(ctx, channels)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	go pc.ProcessPriorityChannelMessages(priorityChannel, msgProcessor)
 
 	time.Sleep(1 * time.Second)
@@ -209,7 +215,10 @@ func TestProcessMessagesByFrequencyRatio_ChannelClosed(t *testing.T) {
 
 	close(normalPriorityC)
 
-	ch, _ := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	ch, err := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	for i := 0; i < 3; i++ {
 		message, channelName, status := ch.ReceiveWithContext(context.Background())
 		if status != pc.ReceiveChannelClosed {
@@ -255,7 +264,10 @@ func TestProcessMessagesByFrequencyRatio_ExitOnDefaultCase(t *testing.T) {
 			1),
 	}
 
-	ch, _ := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	ch, err := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 
 	message, channelName, status := ch.ReceiveWithDefaultCase()
 	if status != pc.ReceiveDefaultCase {
@@ -289,7 +301,10 @@ func TestProcessMessagesByFrequencyRatio_RequestContextCancelled(t *testing.T) {
 			1),
 	}
 
-	ch, _ := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	ch, err := pc.NewByFrequencyRatio(context.Background(), channelsWithFrequencyRatio)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -329,7 +344,10 @@ func TestProcessMessagesByFrequencyRatio_PriorityChannelContextCancelled(t *test
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	ch, _ := pc.NewByFrequencyRatio(ctx, channelsWithFrequencyRatio)
+	ch, err := pc.NewByFrequencyRatio(ctx, channelsWithFrequencyRatio)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 
 	message, channelName, status := ch.ReceiveWithContext(context.Background())
 	if status != pc.ReceivePriorityChannelCancelled {
@@ -340,5 +358,110 @@ func TestProcessMessagesByFrequencyRatio_PriorityChannelContextCancelled(t *test
 	}
 	if message != "" {
 		t.Errorf("Expected empty message, but got %s", message)
+	}
+}
+
+func TestByFrequencyRatioPriorityChannelValidation(t *testing.T) {
+	var testCases = []struct {
+		Name                   string
+		ChannelsWithFreqRatios []channels.ChannelFreqRatio[string]
+		ExpectedErrorMessage   string
+	}{
+		{
+			Name:                   "No channels",
+			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{},
+			ExpectedErrorMessage:   pc.ErrNoChannels.Error(),
+		},
+		{
+			Name: "Empty channel name",
+			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithFreqRatio(
+					"Normal Messages",
+					make(chan string),
+					5),
+				channels.NewChannelWithFreqRatio(
+					"",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: pc.ErrEmptyChannelName.Error(),
+		},
+		{
+			Name: "Zero frequency ratio value",
+			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithFreqRatio(
+					"Normal Messages",
+					make(chan string),
+					0),
+				channels.NewChannelWithFreqRatio(
+					"Low Priority Messages",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: "channel 'Normal Messages': frequency ratio must be greater than 0",
+		},
+		{
+			Name: "Negative frequency ratio value",
+			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithFreqRatio(
+					"Normal Messages",
+					make(chan string),
+					-5),
+				channels.NewChannelWithFreqRatio(
+					"Low Priority Messages",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: "channel 'Normal Messages': frequency ratio must be greater than 0",
+		},
+		{
+			Name: "Duplicate channel name",
+			ChannelsWithFreqRatios: []channels.ChannelFreqRatio[string]{
+				channels.NewChannelWithFreqRatio(
+					"Urgent Messages",
+					make(chan string),
+					10),
+				channels.NewChannelWithFreqRatio(
+					"Normal Messages",
+					make(chan string),
+					5),
+				channels.NewChannelWithFreqRatio(
+					"Urgent Messages",
+					make(chan string),
+					1),
+			},
+			ExpectedErrorMessage: "channel name 'Urgent Messages' is used more than once",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx := context.Background()
+			_, err := pc.NewByFrequencyRatio(ctx, tc.ChannelsWithFreqRatios)
+			if tc.ExpectedErrorMessage == "" {
+				if err != nil {
+					t.Fatalf("Unexpected validation error: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("Expected validation error")
+			}
+			if err.Error() != tc.ExpectedErrorMessage {
+				t.Errorf("Expected error %v, but got: %v", tc.ExpectedErrorMessage, err)
+			}
+		})
 	}
 }
