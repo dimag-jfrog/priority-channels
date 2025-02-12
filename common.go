@@ -119,61 +119,52 @@ func selectCasesOfNextIteration(
 	})
 	selectCases = append(selectCases, channelsSelectCases...)
 	if !isLastIteration || withDefaultCase || isPreparing.Load() {
-		waitInterval := defaultChannelReceiveWaitInterval
-		if channelReceiveWaitInterval != nil {
-			waitInterval = *channelReceiveWaitInterval
-		}
-		if waitInterval > 0 {
-			selectCases = append(selectCases, reflect.SelectCase{
-				// The default behavior without a wait interval may not work
-				// if receiving a message from the channel takes some time.
-				// In such cases, a short wait is needed to ensure that the default case
-				// is not triggered while messages are still available in the channel.
-				Dir:  reflect.SelectRecv,
-				Chan: reflect.ValueOf(time.After(waitInterval)),
-			})
-		} else {
-			selectCases = append(selectCases, reflect.SelectCase{
-				Dir: reflect.SelectDefault,
-			})
-		}
+		selectCases = append(selectCases, getDefaultSelectCaseWithWaitInterval(channelReceiveWaitInterval))
 	}
 
 	chosen, recv, recvOk = reflect.Select(selectCases)
-	if chosen == 0 {
+	switch chosen {
+	case 0:
 		// context of the priority channel is done
-		status = ReceivePriorityChannelCancelled
-		return
-	}
-	if chosen == 1 {
+		return chosen, recv, recvOk, ReceivePriorityChannelCancelled
+	case 1:
 		// context of the specific request is done
-		status = ReceiveContextCancelled
-		return
-	}
-	if chosen == len(selectCases)-1 {
+		return chosen, recv, recvOk, ReceiveContextCancelled
+
+	case len(selectCases) - 1:
 		if !isLastIteration {
 			// Default case - go to next iteration to increase the range of allowed minimal priority channels
 			// on last iteration - blocking wait on all receive channels without default case
-			status = ReceiveStatusUnknown
-			return
+			return chosen, recv, recvOk, ReceiveStatusUnknown
 		} else if withDefaultCase {
-			status = ReceiveDefaultCase
-			return
+			return chosen, recv, recvOk, ReceiveDefaultCase
 		} else if isPreparing.Load() {
 			isPreparing.Store(false)
 			// recursive call for last iteration - this time will issue a blocking wait on all channels
-			return selectCasesOfNextIteration(priorityChannelContext,
-				currRequestContext,
-				fnPrepareChannelsSelectCases,
-				currIterationIndex,
-				lastIterationIndex,
-				withDefaultCase,
-				isPreparing,
-				channelReceiveWaitInterval)
+			return selectCasesOfNextIteration(priorityChannelContext, currRequestContext,
+				fnPrepareChannelsSelectCases, currIterationIndex, lastIterationIndex,
+				withDefaultCase, isPreparing, channelReceiveWaitInterval)
 		}
 	}
-	status = ReceiveSuccess
-	return
+	return chosen, recv, recvOk, ReceiveSuccess
+}
+
+func getDefaultSelectCaseWithWaitInterval(channelReceiveWaitInterval *time.Duration) reflect.SelectCase {
+	waitInterval := defaultChannelReceiveWaitInterval
+	if channelReceiveWaitInterval != nil {
+		waitInterval = *channelReceiveWaitInterval
+	}
+	if waitInterval > 0 {
+		return reflect.SelectCase{
+			// The default behavior without a wait interval may not work
+			// if receiving a message from the channel takes some time.
+			// In such cases, a short wait is needed to ensure that the default case
+			// is not triggered while messages are still available in the channel.
+			Dir:  reflect.SelectRecv,
+			Chan: reflect.ValueOf(time.After(waitInterval)),
+		}
+	}
+	return reflect.SelectCase{Dir: reflect.SelectDefault}
 }
 
 func waitForReadyStatus(ch interface{}) {
