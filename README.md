@@ -53,7 +53,7 @@ for {
     }
     fmt.Printf("%s: %s\n", channelName, message)
 }
-````
+```
 
 ### Priority channel with frequency ratio
 
@@ -90,7 +90,7 @@ for {
     }
     fmt.Printf("%s: %s\n", channelName, message)
 }
-````
+```
 
 ### Combination of priority channels by highest priority first
 
@@ -236,7 +236,7 @@ for {
     }
     fmt.Printf("%s: %s\n", channelName, message)
 }
-````
+```
 
 ### Complex example - combination of multiple levels of priority channels
 
@@ -380,7 +380,7 @@ for {
     fmt.Printf("%s: %s\n", channelName, message)
 }
 
-````
+```
 
 ### Full working example with all use cases
 
