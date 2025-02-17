@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	priority_channels "github.com/dimag-jfrog/priority-channels"
+	"github.com/dimag-jfrog/priority-channels"
 )
 
 func TestWrapAsPriorityChannelValidation(t *testing.T) {
