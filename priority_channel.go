@@ -2,10 +2,10 @@ package priority_channels
 
 import (
 	"context"
-	"github.com/dimag-jfrog/priority-channels/channels"
 	"reflect"
 	"time"
 
+	"github.com/dimag-jfrog/priority-channels/channels"
 	"github.com/dimag-jfrog/priority-channels/internal/selectable"
 )
 
