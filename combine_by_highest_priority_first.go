@@ -7,7 +7,7 @@ import (
 	"github.com/dimag-jfrog/priority-channels/strategies"
 )
 
-func CombineByHighestPriorityFirst[T any](ctx context.Context,
+func CombineByHighestAlwaysFirst[T any](ctx context.Context,
 	priorityChannelsWithPriority []PriorityChannelWithPriority[T],
 	options ...func(*PriorityChannelOptions)) (*PriorityChannel[T], error) {
 	channels := toSelectableChannelsWithWeightByPriority[T](priorityChannelsWithPriority)
