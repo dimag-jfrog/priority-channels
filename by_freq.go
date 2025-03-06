@@ -5,8 +5,8 @@ import (
 
 	"github.com/dimag-jfrog/priority-channels/channels"
 	"github.com/dimag-jfrog/priority-channels/internal/selectable"
-	"github.com/dimag-jfrog/priority-channels/strategies"
 	"github.com/dimag-jfrog/priority-channels/strategies/frequency_strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
 )
 
 func NewByFrequencyRatio[T any](ctx context.Context,
@@ -38,7 +38,7 @@ func getFrequencyStrategy(options ...func(*PriorityChannelOptions)) (Prioritizat
 
 	switch {
 	case frequencyMethod == ProbabilisticByMultipleRandCalls:
-		return nil, strategies.NewByProbability()
+		return nil, priority_strategies.NewByProbability()
 	case frequencyMethod == ProbabilisticByCaseDuplication:
 		return frequency_strategies.NewProbabilisticByCaseDuplication(), nil
 	case frequencyMethod == StrictOrderFully:

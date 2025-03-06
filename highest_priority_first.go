@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/dimag-jfrog/priority-channels/channels"
 	"github.com/dimag-jfrog/priority-channels/internal/selectable"
-	"github.com/dimag-jfrog/priority-channels/strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
 )
 
 func NewByHighestAlwaysFirst[T any](ctx context.Context,
@@ -16,6 +16,6 @@ func NewByHighestAlwaysFirst[T any](ctx context.Context,
 			channels.NewChannelWithWeight[T, int](c.ChannelName(), c.MsgsC(), c.Priority()),
 		))
 	}
-	strategy := strategies.NewByHighestAlwaysFirst()
+	strategy := priority_strategies.NewByHighestAlwaysFirst()
 	return newByStrategy(ctx, strategy, selectableChannels, options...)
 }
