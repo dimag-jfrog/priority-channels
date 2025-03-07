@@ -7,6 +7,8 @@ import (
 	pc "github.com/dimag-jfrog/priority-channels"
 	"github.com/dimag-jfrog/priority-channels/channels"
 	"github.com/dimag-jfrog/priority-channels/strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/frequency_strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
 	"sort"
 	"testing"
 	"time"
@@ -82,7 +84,7 @@ func TestProcessMessagesByDynamicStrategy(t *testing.T) {
 	msgsChannels[2] = make(chan *Msg, 5)
 
 	strategiesByName := map[string]strategies.DynamicSubStrategy{
-		"DayTime":   strategies.NewByFreqRatio(),
+		"DayTime":   frequency_strategies.NewWithStrictOrderFully(),
 		"NightTime": newByFirstDecimalDigitAsc(),
 	}
 	channels := []channels.ChannelWithWeight[*Msg, map[string]interface{}]{
@@ -218,19 +220,19 @@ func TestProcessMessagesByDynamicStrategy_TypeAssertion(t *testing.T) {
 	}{
 		{
 			Name:                 "ByFreqRatio",
-			Strategy:             strategies.NewByFreqRatio(),
+			Strategy:             frequency_strategies.NewWithStrictOrderAcrossCycles(),
 			InvalidWeight:        1.3,
 			ExpectedErrorMessage: "channel 'Channel 1': frequency ratio must be of type int",
 		},
 		{
 			Name:                 "ByHighestAlwaysFirst",
-			Strategy:             strategies.NewByHighestAlwaysFirst(),
+			Strategy:             priority_strategies.NewByHighestAlwaysFirst(),
 			InvalidWeight:        1.3,
 			ExpectedErrorMessage: "channel 'Channel 1': priority must be of type int",
 		},
 		{
 			Name:                 "ByProbability",
-			Strategy:             strategies.NewByProbability(),
+			Strategy:             priority_strategies.NewByProbability(),
 			InvalidWeight:        1,
 			ExpectedErrorMessage: "channel 'Channel 1': probability must be of type float64",
 		},
@@ -242,13 +244,13 @@ func TestProcessMessagesByDynamicStrategy_TypeAssertion(t *testing.T) {
 		},
 		{
 			Name:                 "Invalid number of strategies",
-			Strategy:             strategies.NewByFreqRatio(),
+			Strategy:             frequency_strategies.NewWithStrictOrderAcrossCycles(),
 			InvalidStrategies:    map[string]interface{}{"DayTime": 1},
 			ExpectedErrorMessage: "channel 'Channel 1': invalid number of strategies: 1, expected 2",
 		},
 		{
 			Name:                 "Unknown strategy",
-			Strategy:             strategies.NewByFreqRatio(),
+			Strategy:             frequency_strategies.NewWithStrictOrderAcrossCycles(),
 			InvalidStrategies:    map[string]interface{}{"DayTime": 1, "PartyTime": 10},
 			ExpectedErrorMessage: "channel 'Channel 1': unknown strategy PartyTime",
 		},
@@ -315,7 +317,7 @@ func (s *byFirstDecimalDigit) Initialize(priorities []float64) error {
 		if p < 0 {
 			return &strategies.WeightValidationError{
 				ChannelIndex: i,
-				Err:          strategies.ErrPriorityIsNegative,
+				Err:          priority_strategies.ErrPriorityIsNegative,
 			}
 		}
 		firstDecimalDigit := int(p*10) % 10
@@ -345,10 +347,10 @@ func (s *byFirstDecimalDigit) InitializeWithTypeAssertion(priorities []interface
 	return s.Initialize(prioritiesFloat64)
 }
 
-func (s *byFirstDecimalDigit) NextSelectCasesIndexes(upto int) ([]int, bool) {
-	res := make([]int, 0, upto)
+func (s *byFirstDecimalDigit) NextSelectCasesRankedIndexes(upto int) ([]strategies.RankedIndex, bool) {
+	res := make([]strategies.RankedIndex, 0, upto)
 	for i := 0; i < upto && i < len(s.sortedPriorities); i++ {
-		res = append(res, s.sortedPriorities[i].OriginalIndex)
+		res = append(res, strategies.RankedIndex{Index: s.sortedPriorities[i].OriginalIndex, Rank: i})
 	}
 	return res, len(res) == len(s.sortedPriorities)
 }

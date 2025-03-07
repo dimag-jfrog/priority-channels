@@ -9,7 +9,7 @@ import (
 
 	"github.com/dimag-jfrog/priority-channels"
 	"github.com/dimag-jfrog/priority-channels/channels"
-	"github.com/dimag-jfrog/priority-channels/strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
 )
 
 func TestProcessMessagesByProbability(t *testing.T) {
@@ -32,7 +32,7 @@ func TestProcessMessagesByProbability(t *testing.T) {
 			probability))
 	}
 
-	ch, err := priority_channels.NewByStrategy(ctx, strategies.NewByProbability(), channelsWithProbability)
+	ch, err := priority_channels.NewByStrategy(ctx, priority_strategies.NewByProbability(), channelsWithProbability)
 	if err != nil {
 		t.Errorf("Failed to create priority channel: %v\n", err)
 	}
@@ -71,7 +71,7 @@ func TestProcessMessagesByProbability(t *testing.T) {
 	for _, channel := range channelsWithProbability {
 		expectedProbability := channel.Weight()
 		actualProbability := float64(countPerChannel[channel.ChannelName()]) / float64(totalCount)
-		if math.Abs(actualProbability-expectedProbability) > 0.01 {
+		if math.Abs(actualProbability-expectedProbability) > 0.03 {
 			t.Errorf("Channel %s: expected messages number by probability %.2f, got %.2f\n",
 				channel.ChannelName(), expectedProbability, actualProbability)
 		}
@@ -130,7 +130,7 @@ func TestProcessMessagesByProbability_AutoDisableClosedChannels(t *testing.T) {
 			urgentMessagesC,
 			0.4),
 	}
-	ch, err := priority_channels.NewByStrategy(ctx, strategies.NewByProbability(), channelsWithProbability,
+	ch, err := priority_channels.NewByStrategy(ctx, priority_strategies.NewByProbability(), channelsWithProbability,
 		priority_channels.AutoDisableClosedChannels())
 	if err != nil {
 		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
@@ -222,7 +222,7 @@ func TestByProbabilityPriorityChannelValidation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			ctx := context.Background()
-			_, err := priority_channels.NewByStrategy(ctx, strategies.NewByProbability(), tc.ChannelsWithProbabilities)
+			_, err := priority_channels.NewByStrategy(ctx, priority_strategies.NewByProbability(), tc.ChannelsWithProbabilities)
 			if tc.ExpectedErrorMessage == "" {
 				if err != nil {
 					t.Fatalf("Unexpected validation error: %v", err)

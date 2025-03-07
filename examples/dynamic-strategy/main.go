@@ -12,6 +12,8 @@ import (
 	"github.com/dimag-jfrog/priority-channels"
 	"github.com/dimag-jfrog/priority-channels/channels"
 	"github.com/dimag-jfrog/priority-channels/strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/frequency_strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
 )
 
 func main() {
@@ -22,11 +24,11 @@ func main() {
 	msgsChannels[1] = make(chan string)
 
 	strategiesByName := map[string]strategies.DynamicSubStrategy{
-		"Regular":              strategies.NewByFreqRatio(),
-		"A-Reserved":           strategies.NewByFreqRatio(),
-		"A-Reserved-Exclusive": strategies.NewByHighestAlwaysFirst(),
-		"B-Reserved":           strategies.NewByFreqRatio(),
-		"B-Reserved-Exclusive": strategies.NewByHighestAlwaysFirst(),
+		"Regular":              frequency_strategies.NewWithStrictOrderFully(),
+		"A-Reserved":           frequency_strategies.NewWithStrictOrderFully(),
+		"A-Reserved-Exclusive": priority_strategies.NewByHighestAlwaysFirst(),
+		"B-Reserved":           frequency_strategies.NewWithStrictOrderFully(),
+		"B-Reserved-Exclusive": priority_strategies.NewByHighestAlwaysFirst(),
 	}
 	channelsWithWeights := []channels.ChannelWithWeight[string, map[string]interface{}]{
 		channels.NewChannelWithWeight("Channel A", msgsChannels[0],

@@ -1,23 +1,34 @@
-package strategies
+package frequency_strategies
 
 import (
 	"errors"
 	"sort"
+
+	"github.com/dimag-jfrog/priority-channels/strategies"
 )
 
 var ErrFreqRatioMustBeGreaterThanZero = errors.New("frequency ratio must be greater than 0")
 
-type ByFreqRatio struct {
-	channelName       string
+type WithStrictOrder struct {
 	levels            []*level
 	origIndexToBucket map[int]*priorityBucket
 	disabledCases     map[int]int
+	fully             bool
 }
 
-func NewByFreqRatio() *ByFreqRatio {
-	return &ByFreqRatio{
+func NewWithStrictOrderAcrossCycles() *WithStrictOrder {
+	return newWithStrictOrder(false)
+}
+
+func NewWithStrictOrderFully() *WithStrictOrder {
+	return newWithStrictOrder(true)
+}
+
+func newWithStrictOrder(fully bool) *WithStrictOrder {
+	return &WithStrictOrder{
 		origIndexToBucket: make(map[int]*priorityBucket),
 		disabledCases:     make(map[int]int),
+		fully:             fully,
 	}
 }
 
@@ -26,12 +37,12 @@ func byFreqPriorityBucketsSortingFunc(b1, b2 *priorityBucket) bool {
 		(b1.Capacity == b2.Capacity && b1.OrigChannelIndex > b2.OrigChannelIndex)
 }
 
-func (s *ByFreqRatio) Initialize(freqRatios []int) error {
+func (s *WithStrictOrder) Initialize(freqRatios []int) error {
 	zeroLevel := &level{}
 	zeroLevel.Buckets = make([]*priorityBucket, 0, len(freqRatios))
 	for i, freqRatio := range freqRatios {
 		if freqRatio <= 0 {
-			return &WeightValidationError{
+			return &strategies.WeightValidationError{
 				ChannelIndex: i,
 				Err:          ErrFreqRatioMustBeGreaterThanZero,
 			}
@@ -52,19 +63,28 @@ func (s *ByFreqRatio) Initialize(freqRatios []int) error {
 	return nil
 }
 
-func (s *ByFreqRatio) InitializeWithTypeAssertion(freqRatios []interface{}) error {
-	freqRatiosInt, err := convertWeightsWithTypeAssertion[int]("frequency ratio", freqRatios)
+func (s *WithStrictOrder) InitializeWithTypeAssertion(freqRatios []interface{}) error {
+	freqRatiosInt, err := strategies.ConvertWeightsWithTypeAssertion[int]("frequency ratio", freqRatios)
 	if err != nil {
 		return err
 	}
 	return s.Initialize(freqRatiosInt)
 }
 
-func (s *ByFreqRatio) NextSelectCasesIndexes(upto int) ([]int, bool) {
-	res := make([]int, 0, upto)
+func (s *WithStrictOrder) NextSelectCasesRankedIndexes(upto int) ([]strategies.RankedIndex, bool) {
+	if s.fully {
+		return s.nextSelectCasesRankedIndexesWithStrictOrder(upto)
+	}
+	return s.nextSelectCasesRankedIndexesWithoutStrictOrder(upto)
+}
+
+func (s *WithStrictOrder) nextSelectCasesRankedIndexesWithStrictOrder(upto int) ([]strategies.RankedIndex, bool) {
+	res := make([]strategies.RankedIndex, 0, upto)
+	rank := 0
 	for i, level := range s.levels {
 		for j, b := range level.Buckets {
-			res = append(res, b.OrigChannelIndex)
+			rank++
+			res = append(res, strategies.RankedIndex{Index: b.OrigChannelIndex, Rank: rank})
 			if len(res) == upto {
 				return res, i == len(s.levels)-1 && j == len(level.Buckets)-1
 			}
@@ -73,7 +93,24 @@ func (s *ByFreqRatio) NextSelectCasesIndexes(upto int) ([]int, bool) {
 	return res, true
 }
 
-func (s *ByFreqRatio) UpdateOnCaseSelected(index int) {
+func (s *WithStrictOrder) nextSelectCasesRankedIndexesWithoutStrictOrder(upto int) ([]strategies.RankedIndex, bool) {
+	res := make([]strategies.RankedIndex, 0, upto)
+	rank := 0
+	for i, level := range s.levels {
+		rank++
+		j := 0
+		for _, b := range level.Buckets {
+			j++
+			res = append(res, strategies.RankedIndex{Index: b.OrigChannelIndex, Rank: rank})
+		}
+		if len(res) >= upto {
+			return res, i == len(s.levels)-1 && j == len(level.Buckets)-1
+		}
+	}
+	return res, true
+}
+
+func (s *WithStrictOrder) UpdateOnCaseSelected(index int) {
 	bucket := s.origIndexToBucket[index]
 	levelBuckets := s.levels[bucket.LevelIndex].Buckets
 	bucketIndex := sort.Search(len(levelBuckets), func(i int) bool {
@@ -87,7 +124,7 @@ func (s *ByFreqRatio) UpdateOnCaseSelected(index int) {
 	s.updateStateOnReceivingMessageToBucket(bucket.LevelIndex, bucketIndex)
 }
 
-func (s *ByFreqRatio) DisableSelectCase(index int) {
+func (s *WithStrictOrder) DisableSelectCase(index int) {
 	if _, ok := s.disabledCases[index]; ok {
 		return
 	}
@@ -120,7 +157,7 @@ type level struct {
 	Buckets []*priorityBucket
 }
 
-func (s *ByFreqRatio) updateStateOnReceivingMessageToBucket(levelIndex int, bucketIndex int) {
+func (s *WithStrictOrder) updateStateOnReceivingMessageToBucket(levelIndex int, bucketIndex int) {
 	chosenLevel := s.levels[levelIndex]
 	chosenBucket := chosenLevel.Buckets[bucketIndex]
 	chosenBucket.Value++
@@ -137,7 +174,7 @@ func (s *ByFreqRatio) updateStateOnReceivingMessageToBucket(levelIndex int, buck
 	}
 }
 
-func (s *ByFreqRatio) moveBucketToLastLevel(levelIndex int, bucketIndex int) {
+func (s *WithStrictOrder) moveBucketToLastLevel(levelIndex int, bucketIndex int) {
 	isNeeded := s.prepareToMovingBucketIfNeeded(levelIndex)
 	if !isNeeded {
 		return
@@ -152,7 +189,7 @@ func (s *ByFreqRatio) moveBucketToLastLevel(levelIndex int, bucketIndex int) {
 	s.addBucketToLevel(bucket, len(s.levels)-1)
 }
 
-func (s *ByFreqRatio) addBucketToLevel(bucket *priorityBucket, levelIndex int) {
+func (s *WithStrictOrder) addBucketToLevel(bucket *priorityBucket, levelIndex int) {
 	dstLevel := s.levels[levelIndex]
 	i := sort.Search(len(dstLevel.Buckets), func(i int) bool {
 		return (bucket.Capacity > dstLevel.Buckets[i].Capacity) ||
@@ -164,7 +201,7 @@ func (s *ByFreqRatio) addBucketToLevel(bucket *priorityBucket, levelIndex int) {
 	bucket.LevelIndex = levelIndex
 }
 
-func (s *ByFreqRatio) prepareToMovingBucketIfNeeded(levelIndex int) bool {
+func (s *WithStrictOrder) prepareToMovingBucketIfNeeded(levelIndex int) bool {
 	if levelIndex != len(s.levels)-1 {
 		// if bucket is not in the last level, we need to move it
 		return true
@@ -180,7 +217,7 @@ func (s *ByFreqRatio) prepareToMovingBucketIfNeeded(levelIndex int) bool {
 	return true
 }
 
-func (s *ByFreqRatio) removeEmptyLevel(levelIndex int) {
+func (s *WithStrictOrder) removeEmptyLevel(levelIndex int) {
 	s.levels = append(s.levels[:levelIndex], s.levels[levelIndex+1:]...)
 
 	// Fix level index for all buckets in levels after the removed level
@@ -191,7 +228,7 @@ func (s *ByFreqRatio) removeEmptyLevel(levelIndex int) {
 	}
 }
 
-func (c *ByFreqRatio) removeBucket(levelIndex int, bucketIndex int) {
+func (c *WithStrictOrder) removeBucket(levelIndex int, bucketIndex int) {
 	chosenBucket := c.levels[levelIndex].Buckets[bucketIndex]
 	if len(c.levels[levelIndex].Buckets) == 1 {
 		c.removeEmptyLevel(levelIndex)
