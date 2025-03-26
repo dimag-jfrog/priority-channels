@@ -1,15 +1,15 @@
-package priority_strategies_test
+package frequency_strategies_test
 
 import (
 	"fmt"
 	"github.com/dimag-jfrog/priority-channels/strategies"
-	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/frequency_strategies"
 	"reflect"
 	"testing"
 )
 
 func TestByProbability(t *testing.T) {
-	s := priority_strategies.NewByProbability()
+	s := frequency_strategies.NewByProbability()
 	err := s.Initialize([]float64{0.1, 0.2, 0.3, 0.4})
 	if err != nil {
 		t.Fatalf("Unexpected error on initialization: %v", err)
@@ -69,7 +69,7 @@ func TestByProbability_Initialization(t *testing.T) {
 			Weights: []float64{0.0, 0.3, 0.3, 0.4},
 			ExpectedError: &strategies.WeightValidationError{
 				ChannelIndex: 0,
-				Err:          priority_strategies.ErrProbabilityIsInvalid,
+				Err:          frequency_strategies.ErrProbabilityIsInvalid,
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestByProbability_Initialization(t *testing.T) {
 			Weights: []float64{0.1, -0.2, 0.3, 0.4},
 			ExpectedError: &strategies.WeightValidationError{
 				ChannelIndex: 1,
-				Err:          priority_strategies.ErrProbabilityIsInvalid,
+				Err:          frequency_strategies.ErrProbabilityIsInvalid,
 			},
 		},
 		{
@@ -85,19 +85,19 @@ func TestByProbability_Initialization(t *testing.T) {
 			Weights: []float64{1.1, 0.2, 0.3, 0.4},
 			ExpectedError: &strategies.WeightValidationError{
 				ChannelIndex: 0,
-				Err:          priority_strategies.ErrProbabilityIsInvalid,
+				Err:          frequency_strategies.ErrProbabilityIsInvalid,
 			},
 		},
 		{
 			Name:          "Probabilities sum is not 1",
 			Weights:       []float64{0.1, 0.2, 0.3},
-			ExpectedError: priority_strategies.ErrProbabilitiesMustSumToOne,
+			ExpectedError: frequency_strategies.ErrProbabilitiesMustSumToOne,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			strategy := priority_strategies.NewByProbability()
+			strategy := frequency_strategies.NewByProbability()
 			err := strategy.Initialize(tc.Weights)
 			if err == nil {
 				t.Fatalf("Expected error on initialization")
@@ -120,7 +120,7 @@ func TestByProbability_InitializationWithTypeAssertion(t *testing.T) {
 			Weights: []interface{}{0.0, 0.3, 0.3, 0.4},
 			ExpectedError: &strategies.WeightValidationError{
 				ChannelIndex: 0,
-				Err:          priority_strategies.ErrProbabilityIsInvalid,
+				Err:          frequency_strategies.ErrProbabilityIsInvalid,
 			},
 		},
 		{
@@ -128,7 +128,7 @@ func TestByProbability_InitializationWithTypeAssertion(t *testing.T) {
 			Weights: []interface{}{0.1, -0.2, 0.3, 0.4},
 			ExpectedError: &strategies.WeightValidationError{
 				ChannelIndex: 1,
-				Err:          priority_strategies.ErrProbabilityIsInvalid,
+				Err:          frequency_strategies.ErrProbabilityIsInvalid,
 			},
 		},
 		{
@@ -136,13 +136,13 @@ func TestByProbability_InitializationWithTypeAssertion(t *testing.T) {
 			Weights: []interface{}{1.1, 0.2, 0.3, 0.4},
 			ExpectedError: &strategies.WeightValidationError{
 				ChannelIndex: 0,
-				Err:          priority_strategies.ErrProbabilityIsInvalid,
+				Err:          frequency_strategies.ErrProbabilityIsInvalid,
 			},
 		},
 		{
 			Name:          "Probabilities sum is not 1",
 			Weights:       []interface{}{0.1, 0.2, 0.3},
-			ExpectedError: priority_strategies.ErrProbabilitiesMustSumToOne,
+			ExpectedError: frequency_strategies.ErrProbabilitiesMustSumToOne,
 		},
 		{
 			Name:    "Invalid type",
@@ -156,7 +156,7 @@ func TestByProbability_InitializationWithTypeAssertion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			strategy := priority_strategies.NewByProbability()
+			strategy := frequency_strategies.NewByProbability()
 			err := strategy.InitializeWithTypeAssertion(tc.Weights)
 			if err == nil {
 				t.Fatalf("Expected error on initialization")

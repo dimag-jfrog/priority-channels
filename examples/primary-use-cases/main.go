@@ -12,7 +12,7 @@ import (
 
 	"github.com/dimag-jfrog/priority-channels"
 	"github.com/dimag-jfrog/priority-channels/channels"
-	"github.com/dimag-jfrog/priority-channels/strategies/priority_strategies"
+	"github.com/dimag-jfrog/priority-channels/strategies/frequency_strategies"
 )
 
 func main() {
@@ -92,7 +92,7 @@ func main() {
 	} else if isByHighestAlwaysFirst {
 		ch, err = priority_channels.NewByHighestAlwaysFirst(ctx, channelsWithPriority, options...)
 	} else {
-		ch, err = priority_channels.NewByStrategy(ctx, priority_strategies.NewByProbability(), channelsWithProbability, options...)
+		ch, err = priority_channels.NewByStrategy(ctx, frequency_strategies.NewByProbability(), channelsWithProbability, options...)
 	}
 	if err != nil {
 		fmt.Printf("Failed to create priority channel: %v\n", err)
