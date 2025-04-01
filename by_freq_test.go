@@ -15,6 +15,7 @@ import (
 
 	pc "github.com/dimag-jfrog/priority-channels"
 	"github.com/dimag-jfrog/priority-channels/channels"
+	"github.com/dimag-jfrog/priority-channels/priority-workers"
 )
 
 type Msg struct {
@@ -238,10 +239,335 @@ func testProcessMessagesByFrequencyRatioWithMethod(t *testing.T, freqRatioMethod
 	}
 }
 
+func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines(t *testing.T) {
+	channel1 := make(chan string, 10)
+	channel3 := make(chan string, 10)
+	channel5 := make(chan string, 10)
+	channel10 := make(chan string, 10)
+	//channel1 := make(chan string)
+	//channel3 := make(chan string)
+	//channel5 := make(chan string)
+	//channel10 := make(chan string)
+
+	allChannels := []chan string{channel1, channel3, channel5, channel10}
+	channelNameToIndex := map[string]int{
+		"Channel 0": 0,
+		"Channel 1": 1,
+		"Channel 2": 2,
+		"Channel 3": 3,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	m := make(map[int]int)
+	var mtx sync.Mutex
+
+	var wg sync.WaitGroup
+	// senders
+	for i := 0; i < 4; i++ {
+		go func(i int) {
+			wg.Add(1)
+			defer wg.Done()
+			if i == 0 || i == 1 {
+				return
+			}
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case allChannels[i] <- fmt.Sprintf("Channel %d", i):
+				}
+			}
+		}(i)
+	}
+
+	// receivers
+	freqRatios := []int{1, 3, 5, 10}
+	for i := 0; i < 4; i++ {
+		for j := 0; j < freqRatios[i]; j++ {
+			t.Logf("Receiver %d for channel %d", j+1, i)
+			go func(i int) {
+				wg.Add(1)
+				defer wg.Done()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case msg := <-allChannels[i]:
+						mtx.Lock()
+						//m[i]++
+						idx := channelNameToIndex[msg]
+						m[idx]++
+						mtx.Unlock()
+						// simulate some activity
+						time.Sleep(50 * time.Microsecond)
+					}
+				}
+			}(i)
+		}
+	}
+
+	wg.Wait()
+
+	totalSum := 0
+	for _, value := range m {
+		totalSum += value
+	}
+	actualRatios := make([]float64, 4)
+	for idx, value := range m {
+		actualRatios[idx] = float64(value) / float64(totalSum)
+	}
+	expectedRatios := make([]float64, 4)
+	expectedRatiosSum := 1 + 3 + 5 + 10
+	for idx, value := range freqRatios {
+		expectedRatios[idx] = float64(value) / float64(expectedRatiosSum)
+	}
+
+	t.Logf("Total messages: %d", totalSum)
+	for i := 0; i < 4; i++ {
+		diff := math.Abs(expectedRatios[i] - actualRatios[i])
+		diffPercentage := (diff / expectedRatios[i]) * 100
+		t.Logf("Channel %d: total messages %d, expected messages ratio %.5f, got %.5f (%.1f%%)",
+			i, m[i], expectedRatios[i], actualRatios[i], diffPercentage)
+	}
+
+	//by_freq_test.go:314: Total messages: 1609266
+	//by_freq_test.go:318: Channel 0: total messages 84700, expected messages ratio 0.05263, got 0.05263 (0.0%)
+	//by_freq_test.go:318: Channel 1: total messages 254103, expected messages ratio 0.15789, got 0.15790 (0.0%)
+	//by_freq_test.go:318: Channel 2: total messages 423496, expected messages ratio 0.26316, got 0.26316 (0.0%)
+	//by_freq_test.go:318: Channel 3: total messages 846967, expected messages ratio 0.52632, got 0.52631 (0.0%)
+}
+
+func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityWorkers(t *testing.T) {
+	channel1 := make(chan string, 10)
+	channel3 := make(chan string, 10)
+	channel5 := make(chan string, 10)
+	channel10 := make(chan string, 10)
+	//channel1 := make(chan string)
+	//channel3 := make(chan string)
+	//channel5 := make(chan string)
+	//channel10 := make(chan string)
+
+	channels := []channels.ChannelWithFreqRatio[string]{
+		channels.NewChannelWithFreqRatio("Channel 1", channel1, 1),
+		channels.NewChannelWithFreqRatio("Channel 3", channel3, 3),
+		channels.NewChannelWithFreqRatio("Channel 5", channel5, 5),
+		channels.NewChannelWithFreqRatio("Channel 10", channel10, 10),
+	}
+
+	allChannels := []chan string{channel1, channel3, channel5, channel10}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	channelNameToIndex := map[string]int{
+		"Channel 1":  0,
+		"Channel 3":  1,
+		"Channel 5":  2,
+		"Channel 10": 3,
+	}
+	m := make(map[int]int)
+	var mtx sync.Mutex
+
+	var wg sync.WaitGroup
+	// senders
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func(i int) {
+			if i == 0 || i == 1 {
+				return
+			}
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case allChannels[i] <- fmt.Sprintf("channel %d", i):
+				}
+			}
+		}(i)
+	}
+
+	// receivers
+	freqRatios := []int{1, 3, 5, 10}
+
+	//ch := priority_workers.ProcessByFrequencyRatio(ctx, channels)
+	//for msg := range ch {
+	//	if msg.Status != pc.ReceiveSuccess {
+	//		return
+	//	}
+	//	mtx.Lock()
+	//	idx := channelNameToIndex[msg.ChannelName]
+	//	m[idx]++
+	//	mtx.Unlock()
+	//	// simulate some activity
+	//	time.Sleep(50 * time.Microsecond)
+	//}
+
+	priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channels, func(msg priority_workers.ReceiveResult[string]) {
+		if msg.Status != pc.ReceiveSuccess {
+			return
+		}
+		mtx.Lock()
+		idx := channelNameToIndex[msg.ChannelName]
+		m[idx]++
+		mtx.Unlock()
+		// simulate some activity
+		time.Sleep(50 * time.Microsecond)
+	})
+
+	wg.Wait()
+
+	totalSum := 0
+	for _, value := range m {
+		totalSum += value
+	}
+	actualRatios := make([]float64, 4)
+	for idx, value := range m {
+		actualRatios[idx] = float64(value) / float64(totalSum)
+	}
+	expectedRatios := make([]float64, 4)
+	expectedRatiosSum := 1 + 3 + 5 + 10
+	for idx, value := range freqRatios {
+		expectedRatios[idx] = float64(value) / float64(expectedRatiosSum)
+	}
+
+	t.Logf("Total messages: %d", totalSum)
+	for i := 0; i < 4; i++ {
+		diff := math.Abs(expectedRatios[i] - actualRatios[i])
+		diffPercentage := (diff / expectedRatios[i]) * 100
+		t.Logf("Channel %d: total messages %d, expected messages ratio %.5f, got %.5f (%.1f%%)",
+			i, m[i], expectedRatios[i], actualRatios[i], diffPercentage)
+	}
+
+	//by_freq_test.go:423: Total messages: 1528939
+	//by_freq_test.go:427: Channel 0: total messages 80390, expected messages ratio 0.05263, got 0.05258 (0.1%)
+	//by_freq_test.go:427: Channel 1: total messages 241486, expected messages ratio 0.15789, got 0.15794 (0.0%)
+	//by_freq_test.go:427: Channel 2: total messages 402041, expected messages ratio 0.26316, got 0.26295 (0.1%)
+	//by_freq_test.go:427: Channel 3: total messages 805022, expected messages ratio 0.52632, got 0.52652 (0.0%)
+	//--- PASS: TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityChannel (10.00s)
+}
+
+func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityChannel(t *testing.T) {
+	channel1 := make(chan string, 10)
+	channel3 := make(chan string, 10)
+	channel5 := make(chan string, 10)
+	channel10 := make(chan string, 10)
+	//channel1 := make(chan string)
+	//channel3 := make(chan string)
+	//channel5 := make(chan string)
+	//channel10 := make(chan string)
+
+	channels := []channels.ChannelWithFreqRatio[string]{
+		channels.NewChannelWithFreqRatio("Channel 1", channel1, 1),
+		channels.NewChannelWithFreqRatio("Channel 3", channel3, 3),
+		channels.NewChannelWithFreqRatio("Channel 5", channel5, 5),
+		channels.NewChannelWithFreqRatio("Channel 10", channel10, 10),
+	}
+
+	allChannels := []chan string{channel1, channel3, channel5, channel10}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ch, err := pc.NewByFrequencyRatio(ctx, channels) //pc.WithFrequencyMethod(pc.ProbabilisticByMultipleRandCalls),
+	//pc.WithFrequencyMethod(pc.StrictOrderAcrossCycles),
+	//pc.Synchronized(false),
+
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
+
+	channelNameToIndex := map[string]int{
+		"Channel 1":  0,
+		"Channel 3":  1,
+		"Channel 5":  2,
+		"Channel 10": 3,
+	}
+	m := make(map[int]int)
+	var mtx sync.Mutex
+
+	var wg sync.WaitGroup
+	// senders
+	for i := 0; i < 4; i++ {
+		if i == 0 || i == 1 {
+			continue
+		}
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case allChannels[i] <- fmt.Sprintf("channel %d", i):
+				}
+			}
+		}(i)
+	}
+
+	// receivers
+	freqRatios := []int{1, 3, 5, 10}
+	//for i := 0; i < 4; i++ {
+	//	for j := 0; j < freqRatios[i]; j++ {
+	for i := 0; i < 1; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				_, channelName, status := ch.ReceiveWithContext(context.Background())
+				if status != pc.ReceiveSuccess {
+					return
+				}
+				mtx.Lock()
+				idx := channelNameToIndex[channelName]
+				m[idx]++
+				mtx.Unlock()
+				// simulate some activity
+				time.Sleep(50 * time.Microsecond)
+			}
+		}()
+		//	}
+	}
+
+	wg.Wait()
+
+	totalSum := 0
+	for _, value := range m {
+		totalSum += value
+	}
+	actualRatios := make([]float64, 4)
+	for idx, value := range m {
+		actualRatios[idx] = float64(value) / float64(totalSum)
+	}
+	expectedRatios := make([]float64, 4)
+	expectedRatiosSum := 1 + 3 + 5 + 10
+	for idx, value := range freqRatios {
+		expectedRatios[idx] = float64(value) / float64(expectedRatiosSum)
+	}
+
+	t.Logf("Total messages: %d", totalSum)
+	for i := 0; i < 4; i++ {
+		diff := math.Abs(expectedRatios[i] - actualRatios[i])
+		diffPercentage := (diff / expectedRatios[i]) * 100
+		t.Logf("Channel %d: total messages %d, expected messages ratio %.5f, got %.5f (%.1f%%)",
+			i, m[i], expectedRatios[i], actualRatios[i], diffPercentage)
+	}
+
+	//by_freq_test.go:423: Total messages: 1528939
+	//by_freq_test.go:427: Channel 0: total messages 80390, expected messages ratio 0.05263, got 0.05258 (0.1%)
+	//by_freq_test.go:427: Channel 1: total messages 241486, expected messages ratio 0.15789, got 0.15794 (0.0%)
+	//by_freq_test.go:427: Channel 2: total messages 402041, expected messages ratio 0.26316, got 0.26295 (0.1%)
+	//by_freq_test.go:427: Channel 3: total messages 805022, expected messages ratio 0.52632, got 0.52652 (0.0%)
+	//--- PASS: TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityChannel (10.00s)
+}
+
 func TestProcessMessagesByFrequencyRatio_RandomChannelsList(t *testing.T) {
 	var testCases = []struct {
 		Name            string
 		FreqRatioMethod pc.FrequencyMethod
+		ByGoroutines    bool
 	}{
 		{
 			Name:            "StrictOrderAcrossCycles",
@@ -259,13 +585,17 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsList(t *testing.T) {
 			Name:            "ProbabilisticByMultipleRandCalls",
 			FreqRatioMethod: pc.ProbabilisticByMultipleRandCalls,
 		},
+		{
+			Name:         "ByGoroutines",
+			ByGoroutines: true,
+		},
 	}
 
 	channelsWithFreqRatio, channelsWithExpectedRatios := generateRandomFreqRatioList(8, 16)
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t,
-				channelsWithFreqRatio, channelsWithExpectedRatios, nil, tc.FreqRatioMethod, false)
+				channelsWithFreqRatio, channelsWithExpectedRatios, nil, tc.FreqRatioMethod, false, tc.ByGoroutines)
 		})
 	}
 }
@@ -275,6 +605,7 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsListSubset(t *testing.T) 
 		Name            string
 		FreqRatioMethod pc.FrequencyMethod
 		CloseChannels   bool
+		ByGoroutines    bool
 	}{
 		{
 			Name:            "StrictOrderAcrossCycles",
@@ -312,6 +643,17 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsListSubset(t *testing.T) 
 			FreqRatioMethod: pc.ProbabilisticByMultipleRandCalls,
 			CloseChannels:   true,
 		},
+		{
+			Name:            "ByGoroutines",
+			FreqRatioMethod: pc.ProbabilisticByMultipleRandCalls,
+			ByGoroutines:    true,
+		},
+		{
+			Name:            "ByGoroutines-CloseChannels",
+			FreqRatioMethod: pc.ProbabilisticByMultipleRandCalls,
+			ByGoroutines:    true,
+			CloseChannels:   true,
+		},
 	}
 
 	channelsWithFreqRatio, channelsWithExpectedRatios := generateRandomFreqRatioList(8, 16)
@@ -324,7 +666,7 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsListSubset(t *testing.T) 
 		t.Run(tc.Name, func(t *testing.T) {
 			testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t,
 				channelsWithFreqRatio, channelsWithExpectedRatios, channelIndexesSubset,
-				tc.FreqRatioMethod, tc.CloseChannels)
+				tc.FreqRatioMethod, tc.CloseChannels, tc.ByGoroutines)
 		})
 	}
 }
@@ -390,13 +732,10 @@ func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing
 	channelsWithExpectedRatios map[string]*channelWithExpectedRatio,
 	channelIndexesSubset map[int]struct{},
 	frequencyMethod pc.FrequencyMethod,
-	closeChannels bool) {
+	closeChannels bool,
+	processByGoroutines bool,
+) {
 	ctx, cancel := context.WithCancel(context.Background())
-	ch, err := pc.NewByFrequencyRatio[string](ctx, channelsWithFreqRatio, pc.WithFrequencyMethod(frequencyMethod),
-		pc.AutoDisableClosedChannels())
-	if err != nil {
-		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
-	}
 
 	if len(channelIndexesSubset) > 0 {
 		t.Logf("Taking subset of %d channels out of %d\n", len(channelIndexesSubset), len(channelsWithFreqRatio))
@@ -425,21 +764,47 @@ func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing
 
 	totalCount := 0
 	countPerChannel := make(map[string]int)
-	go func() {
-		for {
-			_, channel, ok := ch.Receive()
-			if !ok {
+	var mtx sync.Mutex
+
+	if !processByGoroutines {
+		ch, err := pc.NewByFrequencyRatio[string](ctx, channelsWithFreqRatio, pc.WithFrequencyMethod(frequencyMethod),
+			pc.AutoDisableClosedChannels())
+		if err != nil {
+			t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+		}
+		go func() {
+			for {
+				_, channel, ok := ch.Receive()
+				if !ok {
+					return
+				}
+				time.Sleep(1 * time.Microsecond)
+				totalCount++
+				countPerChannel[channel] = countPerChannel[channel] + 1
+				if totalCount == messagesNum {
+					cancel()
+					return
+				}
+			}
+		}()
+	} else {
+		priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channelsWithFreqRatio, func(result priority_workers.ReceiveResult[string]) {
+			if result.Status != pc.ReceiveSuccess {
 				return
 			}
-			time.Sleep(1 * time.Microsecond)
+			time.Sleep(1 * time.Millisecond)
+			var reachedTotalCount bool
+			mtx.Lock()
 			totalCount++
-			countPerChannel[channel] = countPerChannel[channel] + 1
-			if totalCount == messagesNum {
+			countPerChannel[result.ChannelName] = countPerChannel[result.ChannelName] + 1
+			reachedTotalCount = totalCount == messagesNum
+			mtx.Unlock()
+			if reachedTotalCount {
 				cancel()
 				return
 			}
-		}
-	}()
+		})
+	}
 
 	<-ctx.Done()
 
