@@ -1,6 +1,15 @@
 package priority_workers
 
-import "github.com/dimag-jfrog/priority-channels"
+import (
+	"context"
+
+	"github.com/dimag-jfrog/priority-channels"
+)
+
+type ChannelWithCancelFunc[T any] struct {
+	Channel    <-chan T
+	CancelFunc context.CancelFunc
+}
 
 type ReceiveResult[T any] struct {
 	Msg         T
@@ -51,9 +60,10 @@ type ReceiveResulterEx[T any] interface {
 }
 
 type ResultChannelWithFreqRatio[T any] struct {
-	channel   <-chan ReceiveResult[T]
-	name      string
-	freqRatio int
+	channel    <-chan ReceiveResult[T]
+	cancelFunc context.CancelFunc
+	name       string
+	freqRatio  int
 }
 
 func (c *ResultChannelWithFreqRatio[T]) Name() string {
@@ -64,22 +74,28 @@ func (c *ResultChannelWithFreqRatio[T]) ResultChannel() <-chan ReceiveResult[T] 
 	return c.channel
 }
 
+func (c *ResultChannelWithFreqRatio[T]) Cancel() {
+	c.cancelFunc()
+}
+
 func (c *ResultChannelWithFreqRatio[T]) FreqRatio() int {
 	return c.freqRatio
 }
 
-func NewResultChannelWithFreqRatio[T any](name string, channel <-chan ReceiveResult[T], freqRatio int) ResultChannelWithFreqRatio[T] {
+func NewResultChannelWithFreqRatio[T any](name string, channel <-chan ReceiveResult[T], cancelFunc context.CancelFunc, freqRatio int) ResultChannelWithFreqRatio[T] {
 	return ResultChannelWithFreqRatio[T]{
-		name:      name,
-		channel:   channel,
-		freqRatio: freqRatio,
+		name:       name,
+		channel:    channel,
+		cancelFunc: cancelFunc,
+		freqRatio:  freqRatio,
 	}
 }
 
 type ResultChannelWithFreqRatioEx[T any] struct {
-	channel   <-chan ReceiveResultEx[T]
-	name      string
-	freqRatio int
+	channel    <-chan ReceiveResultEx[T]
+	cancelFunc context.CancelFunc
+	name       string
+	freqRatio  int
 }
 
 func (c *ResultChannelWithFreqRatioEx[T]) Name() string {
@@ -90,22 +106,28 @@ func (c *ResultChannelWithFreqRatioEx[T]) ResultChannel() <-chan ReceiveResultEx
 	return c.channel
 }
 
+func (c *ResultChannelWithFreqRatioEx[T]) Cancel() {
+	c.cancelFunc()
+}
+
 func (c *ResultChannelWithFreqRatioEx[T]) FreqRatio() int {
 	return c.freqRatio
 }
 
-func NewResultChannelWithFreqRatioEx[T any](name string, channel <-chan ReceiveResultEx[T], freqRatio int) ResultChannelWithFreqRatioEx[T] {
+func NewResultChannelWithFreqRatioEx[T any](name string, channel <-chan ReceiveResultEx[T], cancelFunc context.CancelFunc, freqRatio int) ResultChannelWithFreqRatioEx[T] {
 	return ResultChannelWithFreqRatioEx[T]{
-		name:      name,
-		channel:   channel,
-		freqRatio: freqRatio,
+		name:       name,
+		channel:    channel,
+		cancelFunc: cancelFunc,
+		freqRatio:  freqRatio,
 	}
 }
 
 type ResultChannelWithPriority[T any] struct {
-	channel  <-chan ReceiveResult[T]
-	name     string
-	priority int
+	channel    <-chan ReceiveResult[T]
+	cancelFunc context.CancelFunc
+	name       string
+	priority   int
 }
 
 func (c *ResultChannelWithPriority[T]) Name() string {
@@ -116,22 +138,28 @@ func (c *ResultChannelWithPriority[T]) ResultChannel() <-chan ReceiveResult[T] {
 	return c.channel
 }
 
+func (c *ResultChannelWithPriority[T]) Cancel() {
+	c.cancelFunc()
+}
+
 func (c *ResultChannelWithPriority[T]) Priority() int {
 	return c.priority
 }
 
-func NewResultChannelWithPriority[T any](name string, channel <-chan ReceiveResult[T], priority int) ResultChannelWithPriority[T] {
+func NewResultChannelWithPriority[T any](name string, channel <-chan ReceiveResult[T], cancelFunc context.CancelFunc, priority int) ResultChannelWithPriority[T] {
 	return ResultChannelWithPriority[T]{
-		name:     name,
-		channel:  channel,
-		priority: priority,
+		name:       name,
+		channel:    channel,
+		priority:   priority,
+		cancelFunc: cancelFunc,
 	}
 }
 
 type ResultChannelWithPriorityEx[T any] struct {
-	channel  <-chan ReceiveResultEx[T]
-	name     string
-	priority int
+	channel    <-chan ReceiveResultEx[T]
+	cancelFunc context.CancelFunc
+	name       string
+	priority   int
 }
 
 func (c *ResultChannelWithPriorityEx[T]) Name() string {
@@ -142,14 +170,19 @@ func (c *ResultChannelWithPriorityEx[T]) ResultChannel() <-chan ReceiveResultEx[
 	return c.channel
 }
 
+func (c *ResultChannelWithPriorityEx[T]) Cancel() {
+	c.cancelFunc()
+}
+
 func (c *ResultChannelWithPriorityEx[T]) Priority() int {
 	return c.priority
 }
 
-func NewResultChannelWithPriorityEx[T any](name string, channel <-chan ReceiveResultEx[T], priority int) ResultChannelWithPriorityEx[T] {
+func NewResultChannelWithPriorityEx[T any](name string, channel <-chan ReceiveResultEx[T], cancelFunc context.CancelFunc, priority int) ResultChannelWithPriorityEx[T] {
 	return ResultChannelWithPriorityEx[T]{
-		name:     name,
-		channel:  channel,
-		priority: priority,
+		name:       name,
+		channel:    channel,
+		cancelFunc: cancelFunc,
+		priority:   priority,
 	}
 }

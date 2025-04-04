@@ -793,7 +793,7 @@ func getResultChannelsToProcessFromFreqRatioTree(t *testing.T, ctx context.Conte
 	[]priority_workers.ResultChannelWithFreqRatio[string], map[string]*channelWithExpectedRatio) {
 	channelsWithExpectedRatios := make(map[string]*channelWithExpectedRatio)
 	startTime := time.Now()
-	_, childPriorityChannels := doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t, ctx, root, frequencyMethod, channelsWithExpectedRatios)
+	_, _, childPriorityChannels := doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t, ctx, root, frequencyMethod, channelsWithExpectedRatios)
 	t.Logf("Time to generate priority channel tree: %v\n", time.Since(startTime))
 	sumOfAllChannels := 0.0
 	for _, cwr := range channelsWithExpectedRatios {
@@ -871,7 +871,7 @@ func doGeneratePriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx context.Co
 func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx context.Context,
 	node *freqRatioTreeNode,
 	frequencyMethod priority_channels.FrequencyMethod,
-	channelsWithExpectedRatios map[string]*channelWithExpectedRatio) (<-chan priority_workers.ReceiveResult[string], []priority_workers.ResultChannelWithFreqRatio[string]) {
+	channelsWithExpectedRatios map[string]*channelWithExpectedRatio) (<-chan priority_workers.ReceiveResult[string], context.CancelFunc, []priority_workers.ResultChannelWithFreqRatio[string]) {
 	if len(node.Children) == 0 {
 		cwr := &channelWithExpectedRatio{
 			channel:       make(chan string, 10),
@@ -883,11 +883,14 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 			t.Fatalf("Duplicate channel name: %s", channelName)
 		}
 		channelsWithExpectedRatios[channelName] = cwr
-		ch, err := priority_channels.WrapAsPriorityChannel(ctx, channelName, cwr.channel, priority_channels.AutoDisableClosedChannels())
-		if err != nil {
-			t.Fatalf("Unexpected error on priority channel intialization: %v", err)
-		}
-		return priority_workers.ProcessPriorityChannel(ctx, ch), nil
+		//ch, err := priority_channels.WrapAsPriorityChannel(ctx, channelName, cwr.channel, priority_channels.AutoDisableClosedChannels())
+		//if err != nil {
+		//	t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+		//}
+		//processingChan, processingChanCancelFunc := priority_workers.ProcessPriorityChannel(ctx, ch)
+		//return processingChan, processingChanCancelFunc, nil
+		processingChan, processingChanCancelFunc := priority_workers.ProcessChannel(ctx, channelName, cwr.channel)
+		return processingChan, processingChanCancelFunc, nil
 	}
 	if node.Level == 1 {
 		channelsWithFreqRatio := make([]channels.ChannelWithFreqRatio[string], 0, len(node.Children))
@@ -905,15 +908,17 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 			childChannel := channels.NewChannelWithFreqRatio(childName, cwr.channel, child.Weight)
 			channelsWithFreqRatio = append(channelsWithFreqRatio, childChannel)
 		}
-		return priority_workers.ProcessByFrequencyRatio(ctx, channelsWithFreqRatio), nil
+		processingChan, processingChanCancelFunc := priority_workers.ProcessByFrequencyRatio(ctx, channelsWithFreqRatio)
+		return processingChan, processingChanCancelFunc, nil
 	}
 	priorityChannelsWithFreqRatio := make([]priority_workers.ResultChannelWithFreqRatio[string], 0, len(node.Children))
 	for _, child := range node.Children {
-		childCh, _ := doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t, ctx, child, frequencyMethod, channelsWithExpectedRatios)
+		childCh, childChCancelFunc, _ := doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t, ctx, child, frequencyMethod, channelsWithExpectedRatios)
 		childName := fmt.Sprintf("priority-channel-%d-%s", child.Level, child.Label)
-		priorityChannelsWithFreqRatio = append(priorityChannelsWithFreqRatio, priority_workers.NewResultChannelWithFreqRatio(childName, childCh, child.Weight))
+		priorityChannelsWithFreqRatio = append(priorityChannelsWithFreqRatio, priority_workers.NewResultChannelWithFreqRatio(childName, childCh, childChCancelFunc, child.Weight))
 	}
-	return priority_workers.CombineByFrequencyRatio(ctx, priorityChannelsWithFreqRatio), priorityChannelsWithFreqRatio
+	processingChan, processingChanCancelFunc := priority_workers.CombineByFrequencyRatio(ctx, priorityChannelsWithFreqRatio)
+	return processingChan, processingChanCancelFunc, priorityChannelsWithFreqRatio
 }
 
 func generateRandomFreqRatioTree(t *testing.T, maxLevelNum int, maxChildrenNum int, maxWeight int) *freqRatioTreeNode {

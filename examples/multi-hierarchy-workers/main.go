@@ -29,8 +29,7 @@ func main() {
 		triggerCloseChannels = append(triggerCloseChannels, make(chan bool))
 	}
 
-	ctxA, cancelA := context.WithCancel(ctx)
-	customerAChannel := priority_workers.ProcessByFrequencyRatioEx(ctxA, []channels.ChannelWithFreqRatio[string]{
+	customerAChannel, customerACancelFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Customer A - High Priority",
 			inputChannels[0],
@@ -45,8 +44,7 @@ func main() {
 	//	return
 	//}
 
-	ctxB, cancelB := context.WithCancel(ctx)
-	customerBChannel := priority_workers.ProcessByFrequencyRatioEx(ctxB, []channels.ChannelWithFreqRatio[string]{
+	customerBChannel, customerBCancelFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Customer B - High Priority",
 			inputChannels[2],
@@ -64,34 +62,35 @@ func main() {
 	channelsWithFreqRatio := []priority_workers.ResultChannelWithFreqRatioEx[string]{
 		priority_workers.NewResultChannelWithFreqRatioEx("Customer A",
 			customerAChannel,
+			customerACancelFunc,
 			5),
 		priority_workers.NewResultChannelWithFreqRatioEx("Customer B",
 			customerBChannel,
+			customerBCancelFunc,
 			1),
 	}
 
-	ctxCustomers, cancelCustomers := context.WithCancel(ctx)
-	combinedUsersAndMessageTypesChannel := priority_workers.CombineByFrequencyRatioEx(ctxCustomers, channelsWithFreqRatio)
+	combinedUsersAndMessageTypesChannel, combinedUsersAndMessageTypesCancelFunc := priority_workers.CombineByFrequencyRatioEx(ctx, channelsWithFreqRatio)
 	//if err != nil {
 	//	fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
 	//	return
 	//}
 
-	ctxUrgent, cancelUrgent := context.WithCancel(ctx)
-	urgentMessagesChannel := priority_workers.ProcessChannelEx(ctxUrgent, "Urgent Messages", inputChannels[4])
+	urgentMessagesChannel, urgentMessagesCancelFunc := priority_workers.ProcessChannelEx(ctx, "Urgent Messages", inputChannels[4])
 	//if err != nil {
 	//	fmt.Printf("failed to create urgent message priority channel: %v\n", err)
 	//}
 
-	ctxAll, cancelAll := context.WithCancel(ctx)
-	resCh, err := priority_workers.CombineByHighestAlwaysFirstEx(ctxAll, []priority_workers.ResultChannelWithPriorityEx[string]{
+	resCh, cancelAll, err := priority_workers.CombineByHighestAlwaysFirstEx(ctx, []priority_workers.ResultChannelWithPriorityEx[string]{
 		priority_workers.NewResultChannelWithPriorityEx(
 			"Customer Messages",
 			combinedUsersAndMessageTypesChannel,
+			combinedUsersAndMessageTypesCancelFunc,
 			1),
 		priority_workers.NewResultChannelWithPriorityEx(
 			"Urgent Messages",
 			urgentMessagesChannel,
+			urgentMessagesCancelFunc,
 			100),
 	})
 	if err != nil {
@@ -250,19 +249,19 @@ func main() {
 			switch upperLine {
 			case "CA":
 				fmt.Printf("Closing Priority Channel of Customer A\n")
-				cancelA()
+				customerACancelFunc()
 				continue
 			case "CB":
 				fmt.Printf("Closing Priority Channel of Customer B\n")
-				cancelB()
+				customerBCancelFunc()
 				continue
 			case "CU":
 				fmt.Printf("Closing Priority Channel of Urgent Messages\n")
-				cancelUrgent()
+				urgentMessagesCancelFunc()
 				continue
 			case "CC":
 				fmt.Printf("Closing Combined Priority Channel of Both Customers\n")
-				cancelCustomers()
+				combinedUsersAndMessageTypesCancelFunc()
 				continue
 			case "CG":
 				fmt.Printf("Closing Priority Channel \n")

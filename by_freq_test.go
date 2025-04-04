@@ -373,11 +373,13 @@ func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityWork
 	var wg sync.WaitGroup
 	// senders
 	for i := 0; i < 4; i++ {
+		//if i == 0 || i == 1 {
 		wg.Add(1)
+		//}
 		go func(i int) {
-			if i == 0 || i == 1 {
-				return
-			}
+			//if i == 0 || i == 1 {
+			//	return
+			//}
 			defer wg.Done()
 			for {
 				select {
@@ -405,8 +407,10 @@ func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityWork
 	//	time.Sleep(50 * time.Microsecond)
 	//}
 
+	wg.Add(1)
 	priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channels, func(msg priority_workers.ReceiveResult[string]) {
 		if msg.Status != pc.ReceiveSuccess {
+			wg.Done()
 			return
 		}
 		mtx.Lock()
