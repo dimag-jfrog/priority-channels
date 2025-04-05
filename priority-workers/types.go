@@ -1,14 +1,12 @@
 package priority_workers
 
 import (
-	"context"
-
 	"github.com/dimag-jfrog/priority-channels"
 )
 
-type ChannelWithCancelFunc[T any] struct {
-	Channel    <-chan T
-	CancelFunc context.CancelFunc
+type ChannelWithShutdownFunc[T any] struct {
+	Channel      <-chan T
+	ShutdownFunc ShutdownFunc
 }
 
 type ReceiveResult[T any] struct {
@@ -60,10 +58,10 @@ type ReceiveResulterEx[T any] interface {
 }
 
 type ResultChannelWithFreqRatio[T any] struct {
-	channel    <-chan ReceiveResult[T]
-	cancelFunc context.CancelFunc
-	name       string
-	freqRatio  int
+	channel      <-chan ReceiveResult[T]
+	shutdownFunc ShutdownFunc
+	name         string
+	freqRatio    int
 }
 
 func (c *ResultChannelWithFreqRatio[T]) Name() string {
@@ -74,28 +72,28 @@ func (c *ResultChannelWithFreqRatio[T]) ResultChannel() <-chan ReceiveResult[T] 
 	return c.channel
 }
 
-func (c *ResultChannelWithFreqRatio[T]) Cancel() {
-	c.cancelFunc()
+func (c *ResultChannelWithFreqRatio[T]) Shutdown(mode ShutdownMode) {
+	c.shutdownFunc(mode)
 }
 
 func (c *ResultChannelWithFreqRatio[T]) FreqRatio() int {
 	return c.freqRatio
 }
 
-func NewResultChannelWithFreqRatio[T any](name string, channel <-chan ReceiveResult[T], cancelFunc context.CancelFunc, freqRatio int) ResultChannelWithFreqRatio[T] {
+func NewResultChannelWithFreqRatio[T any](name string, channel <-chan ReceiveResult[T], shutdownFunc ShutdownFunc, freqRatio int) ResultChannelWithFreqRatio[T] {
 	return ResultChannelWithFreqRatio[T]{
-		name:       name,
-		channel:    channel,
-		cancelFunc: cancelFunc,
-		freqRatio:  freqRatio,
+		name:         name,
+		channel:      channel,
+		shutdownFunc: shutdownFunc,
+		freqRatio:    freqRatio,
 	}
 }
 
 type ResultChannelWithFreqRatioEx[T any] struct {
-	channel    <-chan ReceiveResultEx[T]
-	cancelFunc context.CancelFunc
-	name       string
-	freqRatio  int
+	channel      <-chan ReceiveResultEx[T]
+	shutdownFunc ShutdownFunc
+	name         string
+	freqRatio    int
 }
 
 func (c *ResultChannelWithFreqRatioEx[T]) Name() string {
@@ -106,28 +104,28 @@ func (c *ResultChannelWithFreqRatioEx[T]) ResultChannel() <-chan ReceiveResultEx
 	return c.channel
 }
 
-func (c *ResultChannelWithFreqRatioEx[T]) Cancel() {
-	c.cancelFunc()
+func (c *ResultChannelWithFreqRatioEx[T]) Shutdown(mode ShutdownMode) {
+	c.shutdownFunc(mode)
 }
 
 func (c *ResultChannelWithFreqRatioEx[T]) FreqRatio() int {
 	return c.freqRatio
 }
 
-func NewResultChannelWithFreqRatioEx[T any](name string, channel <-chan ReceiveResultEx[T], cancelFunc context.CancelFunc, freqRatio int) ResultChannelWithFreqRatioEx[T] {
+func NewResultChannelWithFreqRatioEx[T any](name string, channel <-chan ReceiveResultEx[T], shutdownFunc ShutdownFunc, freqRatio int) ResultChannelWithFreqRatioEx[T] {
 	return ResultChannelWithFreqRatioEx[T]{
-		name:       name,
-		channel:    channel,
-		cancelFunc: cancelFunc,
-		freqRatio:  freqRatio,
+		name:         name,
+		channel:      channel,
+		shutdownFunc: shutdownFunc,
+		freqRatio:    freqRatio,
 	}
 }
 
 type ResultChannelWithPriority[T any] struct {
-	channel    <-chan ReceiveResult[T]
-	cancelFunc context.CancelFunc
-	name       string
-	priority   int
+	channel      <-chan ReceiveResult[T]
+	shutdownFunc ShutdownFunc
+	name         string
+	priority     int
 }
 
 func (c *ResultChannelWithPriority[T]) Name() string {
@@ -138,28 +136,28 @@ func (c *ResultChannelWithPriority[T]) ResultChannel() <-chan ReceiveResult[T] {
 	return c.channel
 }
 
-func (c *ResultChannelWithPriority[T]) Cancel() {
-	c.cancelFunc()
+func (c *ResultChannelWithPriority[T]) Shutdown(mode ShutdownMode) {
+	c.shutdownFunc(mode)
 }
 
 func (c *ResultChannelWithPriority[T]) Priority() int {
 	return c.priority
 }
 
-func NewResultChannelWithPriority[T any](name string, channel <-chan ReceiveResult[T], cancelFunc context.CancelFunc, priority int) ResultChannelWithPriority[T] {
+func NewResultChannelWithPriority[T any](name string, channel <-chan ReceiveResult[T], shutdownFunc ShutdownFunc, priority int) ResultChannelWithPriority[T] {
 	return ResultChannelWithPriority[T]{
-		name:       name,
-		channel:    channel,
-		priority:   priority,
-		cancelFunc: cancelFunc,
+		name:         name,
+		channel:      channel,
+		priority:     priority,
+		shutdownFunc: shutdownFunc,
 	}
 }
 
 type ResultChannelWithPriorityEx[T any] struct {
-	channel    <-chan ReceiveResultEx[T]
-	cancelFunc context.CancelFunc
-	name       string
-	priority   int
+	channel      <-chan ReceiveResultEx[T]
+	shutdownFunc ShutdownFunc
+	name         string
+	priority     int
 }
 
 func (c *ResultChannelWithPriorityEx[T]) Name() string {
@@ -170,19 +168,19 @@ func (c *ResultChannelWithPriorityEx[T]) ResultChannel() <-chan ReceiveResultEx[
 	return c.channel
 }
 
-func (c *ResultChannelWithPriorityEx[T]) Cancel() {
-	c.cancelFunc()
+func (c *ResultChannelWithPriorityEx[T]) Shutdown(mode ShutdownMode) {
+	c.shutdownFunc(mode)
 }
 
 func (c *ResultChannelWithPriorityEx[T]) Priority() int {
 	return c.priority
 }
 
-func NewResultChannelWithPriorityEx[T any](name string, channel <-chan ReceiveResultEx[T], cancelFunc context.CancelFunc, priority int) ResultChannelWithPriorityEx[T] {
+func NewResultChannelWithPriorityEx[T any](name string, channel <-chan ReceiveResultEx[T], shutdownFunc ShutdownFunc, priority int) ResultChannelWithPriorityEx[T] {
 	return ResultChannelWithPriorityEx[T]{
-		name:       name,
-		channel:    channel,
-		cancelFunc: cancelFunc,
-		priority:   priority,
+		name:         name,
+		channel:      channel,
+		shutdownFunc: shutdownFunc,
+		priority:     priority,
 	}
 }

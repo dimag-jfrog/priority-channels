@@ -29,7 +29,7 @@ func main() {
 		triggerCloseChannels = append(triggerCloseChannels, make(chan bool))
 	}
 
-	customerAChannel, customerACancelFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
+	customerAChannel, customerAShutdownFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Customer A - High Priority",
 			inputChannels[0],
@@ -44,7 +44,7 @@ func main() {
 	//	return
 	//}
 
-	customerBChannel, customerBCancelFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
+	customerBChannel, customerBShutdownFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Customer B - High Priority",
 			inputChannels[2],
@@ -62,15 +62,15 @@ func main() {
 	channelsWithFreqRatio := []priority_workers.ResultChannelWithFreqRatioEx[string]{
 		priority_workers.NewResultChannelWithFreqRatioEx("Customer A",
 			customerAChannel,
-			customerACancelFunc,
+			customerAShutdownFunc,
 			5),
 		priority_workers.NewResultChannelWithFreqRatioEx("Customer B",
 			customerBChannel,
-			customerBCancelFunc,
+			customerBShutdownFunc,
 			1),
 	}
 
-	combinedUsersAndMessageTypesChannel, combinedUsersAndMessageTypesCancelFunc := priority_workers.CombineByFrequencyRatioEx(ctx, channelsWithFreqRatio)
+	combinedUsersAndMessageTypesChannel, combinedUsersAndMessageTypesShutdownFunc := priority_workers.CombineByFrequencyRatioEx(ctx, channelsWithFreqRatio)
 	//if err != nil {
 	//	fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
 	//	return
@@ -85,7 +85,7 @@ func main() {
 		priority_workers.NewResultChannelWithPriorityEx(
 			"Customer Messages",
 			combinedUsersAndMessageTypesChannel,
-			combinedUsersAndMessageTypesCancelFunc,
+			combinedUsersAndMessageTypesShutdownFunc,
 			1),
 		priority_workers.NewResultChannelWithPriorityEx(
 			"Urgent Messages",
@@ -245,27 +245,31 @@ func main() {
 		if !value {
 			operation = "Stopped"
 		}
-		if strings.HasPrefix(upperLine, "C") {
-			switch upperLine {
+		if strings.HasPrefix(upperLine, "C") || strings.HasPrefix(upperLine, "FC") {
+			shutdownMode := priority_workers.Graceful
+			if strings.HasPrefix(upperLine, "FC") {
+				shutdownMode = priority_workers.Force
+			}
+			switch strings.TrimPrefix(upperLine, "F") {
 			case "CA":
 				fmt.Printf("Closing Priority Channel of Customer A\n")
-				customerACancelFunc()
+				customerAShutdownFunc(shutdownMode)
 				continue
 			case "CB":
 				fmt.Printf("Closing Priority Channel of Customer B\n")
-				customerBCancelFunc()
+				customerBShutdownFunc(shutdownMode)
 				continue
 			case "CU":
 				fmt.Printf("Closing Priority Channel of Urgent Messages\n")
-				urgentMessagesCancelFunc()
+				urgentMessagesCancelFunc(shutdownMode)
 				continue
 			case "CC":
 				fmt.Printf("Closing Combined Priority Channel of Both Customers\n")
-				combinedUsersAndMessageTypesCancelFunc()
+				combinedUsersAndMessageTypesShutdownFunc(shutdownMode)
 				continue
 			case "CG":
 				fmt.Printf("Closing Priority Channel \n")
-				cancelAll()
+				cancelAll(shutdownMode)
 				continue
 			}
 			upperLine = strings.TrimPrefix(upperLine, "C")
