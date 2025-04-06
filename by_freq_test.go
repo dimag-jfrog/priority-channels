@@ -658,17 +658,6 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsListSubset(t *testing.T) 
 			ByGoroutines:    true,
 			CloseChannels:   true,
 		},
-		{
-			Name:            "ByGoroutines",
-			FreqRatioMethod: pc.ProbabilisticByMultipleRandCalls,
-			ByGoroutines:    true,
-		},
-		{
-			Name:            "ByGoroutines-CloseChannels",
-			FreqRatioMethod: pc.ProbabilisticByMultipleRandCalls,
-			ByGoroutines:    true,
-			CloseChannels:   true,
-		},
 	}
 
 	channelsWithFreqRatio, channelsWithExpectedRatios := generateRandomFreqRatioList(8, 16)

@@ -400,6 +400,28 @@ func combineByFrequencyRatioWithCallbackEx[T any](ctx context.Context,
 	return fnShutdown
 }
 
+func CombineByHighestAlwaysFirst[T any](ctx context.Context,
+	resultChannelsWithPriority []ResultChannelWithPriority[T]) (<-chan ReceiveResult[T], ShutdownFunc, error) {
+	channelsWithPriority := make([]channels.ChannelWithPriority[ReceiveResult[T]], 0, len(resultChannelsWithPriority))
+	for _, resultChannelWithPriority := range resultChannelsWithPriority {
+		channelsWithPriority = append(channelsWithPriority, channels.NewChannelWithPriority(
+			resultChannelWithPriority.Name(),
+			resultChannelWithPriority.ResultChannel(),
+			resultChannelWithPriority.Priority()))
+	}
+	ch, err := priority_channels.NewByHighestAlwaysFirst(context.Background(), channelsWithPriority, priority_channels.AutoDisableClosedChannels())
+	if err != nil {
+		return nil, nil, err
+	}
+	shutdownUnderlyingChannelsFunc := func(mode ShutdownMode) {
+		for _, resultChannelWithPriority := range resultChannelsWithPriority {
+			resultChannelWithPriority.Shutdown(mode)
+		}
+	}
+	wrappedCh, fnShutdown := doProcessPriorityChannelWithUnwrap(ctx, ch, getReceiveResult, shutdownUnderlyingChannelsFunc)
+	return wrappedCh, fnShutdown, nil
+}
+
 func CombineByHighestAlwaysFirstEx[T any](ctx context.Context,
 	resultChannelsWithPriority []ResultChannelWithPriorityEx[T]) (<-chan ReceiveResultEx[T], ShutdownFunc, error) {
 	channelsWithPriority := make([]channels.ChannelWithPriority[ReceiveResultEx[T]], 0, len(resultChannelsWithPriority))
@@ -418,7 +440,7 @@ func CombineByHighestAlwaysFirstEx[T any](ctx context.Context,
 			resultChannelWithPriority.Shutdown(mode)
 		}
 	}
-	wrappedCh, fnShutdown := doProcessPriorityChannelWithUnwrap(ctx, ch, getReceiveResultEx, shutdownUnderlyingChannelsFunc)
+	wrappedCh, fnShutdown := doProcessPriorityChannelWithUnwrapEx(ctx, ch, getReceiveResultEx, shutdownUnderlyingChannelsFunc)
 	return wrappedCh, fnShutdown, nil
 }
 
@@ -492,16 +514,68 @@ func processPriorityChannel[T any, R any](ctx context.Context, c *priority_chann
 	return resChannel, fnShutdown
 }
 
-func processPriorityChannelWithUnwrap[W ReceiveResulterEx[T], T any](ctx context.Context, c *priority_channels.PriorityChannel[W],
+func processPriorityChannelWithUnwrap[W ReceiveResulter[T], T any](ctx context.Context, c *priority_channels.PriorityChannel[W],
 	shutdownUnderlyingChannelsFunc ShutdownFunc) (<-chan ReceiveResult[T], ShutdownFunc) {
 	return doProcessPriorityChannelWithUnwrap(ctx, c, getReceiveResult, shutdownUnderlyingChannelsFunc)
 }
 
 func processPriorityChannelWithUnwrapEx[W ReceiveResulterEx[T], T any](ctx context.Context, c *priority_channels.PriorityChannel[W], shutdownUnderlyingChannelsFunc ShutdownFunc) (<-chan ReceiveResultEx[T], ShutdownFunc) {
-	return doProcessPriorityChannelWithUnwrap(ctx, c, getReceiveResultEx, shutdownUnderlyingChannelsFunc)
+	return doProcessPriorityChannelWithUnwrapEx(ctx, c, getReceiveResultEx, shutdownUnderlyingChannelsFunc)
 }
 
-func doProcessPriorityChannelWithUnwrap[W ReceiveResulterEx[T], T any, R any](ctx context.Context, c *priority_channels.PriorityChannel[W],
+func doProcessPriorityChannelWithUnwrap[W ReceiveResulter[T], T any, R any](ctx context.Context, c *priority_channels.PriorityChannel[W],
+	fnGetReceiveResult getReceiveResultFunc[T, R],
+	shutdownUnderlyingChannelsFunc ShutdownFunc) (<-chan R, ShutdownFunc) {
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+	forceShutdownChannel := make(chan struct{})
+	var shutdownOnce sync.Once
+	fnShutdown := func(mode ShutdownMode) {
+		if mode == Force {
+			shutdownOnce.Do(func() {
+				close(forceShutdownChannel)
+			})
+		}
+		cancel()
+	}
+	resChannel := make(chan R, 1)
+	go func() {
+		defer close(resChannel)
+		for {
+			msg, channelName, status := receiveUnwrapped(ctxWithCancel, c)
+			if status == priority_channels.ReceiveContextCancelled && channelName == "" {
+				var shutdownMode ShutdownMode
+				select {
+				case <-forceShutdownChannel:
+					shutdownMode = Force
+				default:
+					shutdownMode = Graceful
+				}
+				shutdownUnderlyingChannelsFunc(shutdownMode)
+				// read all remaining messages from the channel until all underlying channels are closed
+				for {
+					msg, channelName, status = receiveUnwrapped(context.Background(), c)
+					if status != priority_channels.ReceiveSuccess &&
+						channelName != "" {
+						// after channel cancellation - call callback only for successful messages of underlying channels
+						continue
+					}
+					if status != priority_channels.ReceiveNoOpenChannels && shutdownMode == Graceful {
+						resChannel <- fnGetReceiveResult(msg, channelName, -1, priority_channels.ReceiveDetails{}, status)
+					}
+					if status == priority_channels.ReceiveNoOpenChannels {
+						resChannel <- fnGetReceiveResult(msg, channelName, -1, priority_channels.ReceiveDetails{}, priority_channels.ReceiveContextCancelled)
+						break
+					}
+				}
+				return
+			}
+			resChannel <- fnGetReceiveResult(msg, channelName, -1, priority_channels.ReceiveDetails{}, status)
+		}
+	}()
+	return resChannel, fnShutdown
+}
+
+func doProcessPriorityChannelWithUnwrapEx[W ReceiveResulterEx[T], T any, R any](ctx context.Context, c *priority_channels.PriorityChannel[W],
 	fnGetReceiveResult getReceiveResultFunc[T, R],
 	shutdownUnderlyingChannelsFunc ShutdownFunc) (<-chan R, ShutdownFunc) {
 	ctxWithCancel, cancel := context.WithCancel(ctx)
