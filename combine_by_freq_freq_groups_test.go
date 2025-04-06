@@ -632,7 +632,7 @@ func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 	byGoroutines bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	ch, childPriorityChannels, channelsWithExpectedRatios := generatePriorityChannelTreeFromFreqRatioTree(t, ctx, freqRatioTree, frequencyMethod)
+	ch, _, channelsWithExpectedRatios := generatePriorityChannelTreeFromFreqRatioTree(t, ctx, freqRatioTree, frequencyMethod)
 	if recomputedChannelsFrequencyRatios != nil {
 		for _, c := range channelsWithExpectedRatios {
 			c.expectedRatio = recomputedChannelsFrequencyRatios[c.channelIndex]
@@ -693,29 +693,12 @@ func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 				}
 			}
 		}()
-	} else if len(childResultChannels) > 0 {
+	} else {
 		priority_workers.CombineByFrequencyRatioWithCallback(ctx, childResultChannels, func(result priority_workers.ReceiveResult[string]) {
 			if result.Status != priority_channels.ReceiveSuccess {
 				return
 			}
 			time.Sleep(10 * time.Millisecond)
-			var reachedTotalCount bool
-			mtx.Lock()
-			totalCount++
-			countPerChannel[result.ChannelName] = countPerChannel[result.ChannelName] + 1
-			reachedTotalCount = totalCount == messagesNum
-			mtx.Unlock()
-			if reachedTotalCount {
-				cancel()
-				return
-			}
-		})
-	} else {
-		priority_workers.ProcessPriorityChannelsByFrequencyRatioWithCallback(ctx, childPriorityChannels, func(result priority_workers.ReceiveResult[string]) {
-			if result.Status != priority_channels.ReceiveSuccess {
-				return
-			}
-			time.Sleep(10 * time.Microsecond)
 			var reachedTotalCount bool
 			mtx.Lock()
 			totalCount++
