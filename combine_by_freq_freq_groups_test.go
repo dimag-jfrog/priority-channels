@@ -872,7 +872,10 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 		//}
 		//processingChan, processingChanShutdownFunc := priority_workers.ProcessPriorityChannel(ctx, ch)
 		//return processingChan, processingChanShutdownFunc, nil
-		processingChan, processingChanCancelFunc := priority_workers.ProcessChannel(ctx, channelName, cwr.channel)
+		processingChan, processingChanCancelFunc, err := priority_workers.ProcessChannel(ctx, channelName, cwr.channel)
+		if err != nil {
+			t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+		}
 		return processingChan, processingChanCancelFunc, nil
 	}
 	if node.Level == 1 {
@@ -891,7 +894,10 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 			childChannel := channels.NewChannelWithFreqRatio(childName, cwr.channel, child.Weight)
 			channelsWithFreqRatio = append(channelsWithFreqRatio, childChannel)
 		}
-		processingChan, processingChanShutdownFunc := priority_workers.ProcessByFrequencyRatio(ctx, channelsWithFreqRatio)
+		processingChan, processingChanShutdownFunc, err := priority_workers.ProcessByFrequencyRatio(ctx, channelsWithFreqRatio)
+		if err != nil {
+			t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+		}
 		return processingChan, processingChanShutdownFunc, nil
 	}
 	priorityChannelsWithFreqRatio := make([]priority_workers.ResultChannelWithFreqRatio[string], 0, len(node.Children))
@@ -900,7 +906,10 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 		childName := fmt.Sprintf("priority-channel-%d-%s", child.Level, child.Label)
 		priorityChannelsWithFreqRatio = append(priorityChannelsWithFreqRatio, priority_workers.NewResultChannelWithFreqRatio(childName, childCh, childChShutdownFunc, child.Weight))
 	}
-	processingChan, processingChanShutdownFunc := priority_workers.CombineByFrequencyRatio(ctx, priorityChannelsWithFreqRatio)
+	processingChan, processingChanShutdownFunc, err := priority_workers.CombineByFrequencyRatio(ctx, priorityChannelsWithFreqRatio)
+	if err != nil {
+		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+	}
 	return processingChan, processingChanShutdownFunc, priorityChannelsWithFreqRatio
 }
 

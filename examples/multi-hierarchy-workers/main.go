@@ -29,7 +29,7 @@ func main() {
 		triggerCloseChannels = append(triggerCloseChannels, make(chan bool))
 	}
 
-	customerAChannel, customerAShutdownFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
+	customerAChannel, customerAShutdownFunc, err := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Customer A - High Priority",
 			inputChannels[0],
@@ -39,12 +39,12 @@ func main() {
 			inputChannels[1],
 			1),
 	})
-	//if err != nil {
-	//	fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
-	//	return
-	//}
+	if err != nil {
+		fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
+		return
+	}
 
-	customerBChannel, customerBShutdownFunc := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
+	customerBChannel, customerBShutdownFunc, err := priority_workers.ProcessByFrequencyRatioEx(ctx, []channels.ChannelWithFreqRatio[string]{
 		channels.NewChannelWithFreqRatio(
 			"Customer B - High Priority",
 			inputChannels[2],
@@ -54,10 +54,10 @@ func main() {
 			inputChannels[3],
 			1),
 	})
-	//if err != nil {
-	//	fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
-	//	return
-	//}
+	if err != nil {
+		fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
+		return
+	}
 
 	channelsWithFreqRatio := []priority_workers.ResultChannelWithFreqRatioEx[string]{
 		priority_workers.NewResultChannelWithFreqRatioEx("Customer A",
@@ -70,16 +70,16 @@ func main() {
 			1),
 	}
 
-	combinedUsersAndMessageTypesChannel, combinedUsersAndMessageTypesShutdownFunc := priority_workers.CombineByFrequencyRatioEx(ctx, channelsWithFreqRatio)
-	//if err != nil {
-	//	fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
-	//	return
-	//}
+	combinedUsersAndMessageTypesChannel, combinedUsersAndMessageTypesShutdownFunc, err := priority_workers.CombineByFrequencyRatioEx(ctx, channelsWithFreqRatio)
+	if err != nil {
+		fmt.Printf("Unexpected error on priority channel initialization: %v\n", err)
+		return
+	}
 
-	urgentMessagesChannel, urgentMessagesCancelFunc := priority_workers.ProcessChannelEx(ctx, "Urgent Messages", inputChannels[4])
-	//if err != nil {
-	//	fmt.Printf("failed to create urgent message priority channel: %v\n", err)
-	//}
+	urgentMessagesChannel, urgentMessagesCancelFunc, err := priority_workers.ProcessChannelEx(ctx, "Urgent Messages", inputChannels[4])
+	if err != nil {
+		fmt.Printf("failed to create urgent message priority channel: %v\n", err)
+	}
 
 	resCh, cancelAll, err := priority_workers.CombineByHighestAlwaysFirstEx(ctx, []priority_workers.ResultChannelWithPriorityEx[string]{
 		priority_workers.NewResultChannelWithPriorityEx(

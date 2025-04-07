@@ -94,13 +94,21 @@ func processWithCallbackToChannel[R any](fnProcessWithCallback func(func(r R), f
 }
 
 func ProcessByFrequencyRatio[T any](ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T]) (<-chan ReceiveResult[T], ShutdownFunc) {
-	return processByFrequencyRatio(ctx, channelsWithFreqRatios, getReceiveResult)
+	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T]) (<-chan ReceiveResult[T], ShutdownFunc, error) {
+	if err := validateChannelsWithFreqRatio(convertChannelsWithFreqRatioToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, nil, err
+	}
+	resChan, shutdownFunc := processByFrequencyRatio(ctx, channelsWithFreqRatios, getReceiveResult)
+	return resChan, shutdownFunc, nil
 }
 
 func ProcessByFrequencyRatioEx[T any](ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T]) (<-chan ReceiveResultEx[T], ShutdownFunc) {
-	return processByFrequencyRatio(ctx, channelsWithFreqRatios, getReceiveResultEx)
+	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T]) (<-chan ReceiveResultEx[T], ShutdownFunc, error) {
+	if err := validateChannelsWithFreqRatio(convertChannelsWithFreqRatioToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, nil, err
+	}
+	resChan, shutdownFunc := processByFrequencyRatio(ctx, channelsWithFreqRatios, getReceiveResultEx)
+	return resChan, shutdownFunc, nil
 }
 
 func processByFrequencyRatio[T any, R any](ctx context.Context,
@@ -111,13 +119,21 @@ func processByFrequencyRatio[T any, R any](ctx context.Context,
 }
 
 func ProcessByFrequencyRatioWithCallback[T any](ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T], fnCallback func(ReceiveResult[T])) {
+	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T], fnCallback func(ReceiveResult[T])) error {
+	if err := validateChannelsWithFreqRatio(convertChannelsWithFreqRatioToChannels(channelsWithFreqRatios)); err != nil {
+		return err
+	}
 	processByFrequencyRatioWithCallback(ctx, channelsWithFreqRatios, fnCallback, nil, getReceiveResult)
+	return nil
 }
 
 func ProcessByFrequencyRatioWithCallbackEx[T any](ctx context.Context,
-	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T], fnCallback func(ReceiveResultEx[T])) {
+	channelsWithFreqRatios []channels.ChannelWithFreqRatio[T], fnCallback func(ReceiveResultEx[T])) error {
+	if err := validateChannelsWithFreqRatio(convertChannelsWithFreqRatioToChannels(channelsWithFreqRatios)); err != nil {
+		return err
+	}
 	processByFrequencyRatioWithCallback(ctx, channelsWithFreqRatios, fnCallback, nil, getReceiveResultEx)
+	return nil
 }
 
 func processByFrequencyRatioWithCallback[T any, R any](ctx context.Context,
@@ -180,22 +196,34 @@ func processByFrequencyRatioWithCallback[T any, R any](ctx context.Context,
 }
 
 func CombineByFrequencyRatio[T any](ctx context.Context,
-	channelsWithFreqRatios []ResultChannelWithFreqRatio[T]) (<-chan ReceiveResult[T], ShutdownFunc) {
-	return processWithCallbackToChannel(func(fnCallback func(r ReceiveResult[T]), fnClose func()) ShutdownFunc {
+	channelsWithFreqRatios []ResultChannelWithFreqRatio[T]) (<-chan ReceiveResult[T], ShutdownFunc, error) {
+	if err := validateChannelsWithFreqRatio(convertResultChannelsWithFreqRatioToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, nil, err
+	}
+	resChan, shutdownFunc := processWithCallbackToChannel(func(fnCallback func(r ReceiveResult[T]), fnClose func()) ShutdownFunc {
 		return combineByFrequencyRatioWithCallback(ctx, channelsWithFreqRatios, fnCallback, fnClose)
 	})
+	return resChan, shutdownFunc, nil
 }
 
 func CombineByFrequencyRatioEx[T any](ctx context.Context,
-	channelsWithFreqRatios []ResultChannelWithFreqRatioEx[T]) (<-chan ReceiveResultEx[T], ShutdownFunc) {
-	return processWithCallbackToChannel(func(fnCallback func(r ReceiveResultEx[T]), fnClose func()) ShutdownFunc {
+	channelsWithFreqRatios []ResultChannelWithFreqRatioEx[T]) (<-chan ReceiveResultEx[T], ShutdownFunc, error) {
+	if err := validateChannelsWithFreqRatio(convertResultChannelsWithFreqRatioExToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, nil, err
+	}
+	resChan, shutdownFunc := processWithCallbackToChannel(func(fnCallback func(r ReceiveResultEx[T]), fnClose func()) ShutdownFunc {
 		return combineByFrequencyRatioWithCallbackEx(ctx, channelsWithFreqRatios, fnCallback, fnClose)
 	})
+	return resChan, shutdownFunc, nil
 }
 
 func CombineByFrequencyRatioWithCallback[T any](ctx context.Context,
-	channelsWithFreqRatios []ResultChannelWithFreqRatio[T], fnCallback func(ReceiveResult[T])) ShutdownFunc {
-	return combineByFrequencyRatioWithCallback(ctx, channelsWithFreqRatios, fnCallback, nil)
+	channelsWithFreqRatios []ResultChannelWithFreqRatio[T], fnCallback func(ReceiveResult[T])) (ShutdownFunc, error) {
+	if err := validateChannelsWithFreqRatio(convertResultChannelsWithFreqRatioToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, err
+	}
+	shutdownFunc := combineByFrequencyRatioWithCallback(ctx, channelsWithFreqRatios, fnCallback, nil)
+	return shutdownFunc, nil
 }
 
 func combineByFrequencyRatioWithCallback[T any](ctx context.Context,
@@ -297,8 +325,12 @@ func combineByFrequencyRatioWithCallback[T any](ctx context.Context,
 }
 
 func CombineByFrequencyRatioWithCallbackEx[T any](ctx context.Context,
-	channelsWithFreqRatios []ResultChannelWithFreqRatioEx[T], fnCallback func(ReceiveResultEx[T])) ShutdownFunc {
-	return combineByFrequencyRatioWithCallbackEx(ctx, channelsWithFreqRatios, fnCallback, nil)
+	channelsWithFreqRatios []ResultChannelWithFreqRatioEx[T], fnCallback func(ReceiveResultEx[T])) (ShutdownFunc, error) {
+	if err := validateChannelsWithFreqRatio(convertResultChannelsWithFreqRatioExToChannels(channelsWithFreqRatios)); err != nil {
+		return nil, err
+	}
+	shutdownFunc := combineByFrequencyRatioWithCallbackEx(ctx, channelsWithFreqRatios, fnCallback, nil)
+	return shutdownFunc, nil
 }
 
 func combineByFrequencyRatioWithCallbackEx[T any](ctx context.Context,
@@ -444,12 +476,20 @@ func CombineByHighestAlwaysFirstEx[T any](ctx context.Context,
 	return wrappedCh, fnShutdown, nil
 }
 
-func ProcessChannel[T any](ctx context.Context, name string, c <-chan T) (<-chan ReceiveResult[T], ShutdownFunc) {
-	return processChannel(ctx, name, c, getReceiveResult)
+func ProcessChannel[T any](ctx context.Context, name string, c <-chan T) (<-chan ReceiveResult[T], ShutdownFunc, error) {
+	if name == "" {
+		return nil, nil, ErrEmptyChannelName
+	}
+	resChan, shutdownFunc := processChannel(ctx, name, c, getReceiveResult)
+	return resChan, shutdownFunc, nil
 }
 
-func ProcessChannelEx[T any](ctx context.Context, name string, c <-chan T) (<-chan ReceiveResultEx[T], ShutdownFunc) {
-	return processChannel(ctx, name, c, getReceiveResultEx)
+func ProcessChannelEx[T any](ctx context.Context, name string, c <-chan T) (<-chan ReceiveResultEx[T], ShutdownFunc, error) {
+	if name == "" {
+		return nil, nil, ErrEmptyChannelName
+	}
+	resChan, shutdownFunc := processChannel(ctx, name, c, getReceiveResultEx)
+	return resChan, shutdownFunc, nil
 }
 
 func processChannel[T any, R any](ctx context.Context, name string, c <-chan T, fnGetReceiveResult getReceiveResultFunc[T, R]) (<-chan R, ShutdownFunc) {
