@@ -3,6 +3,7 @@ package priority_workers
 import (
 	"errors"
 	"fmt"
+
 	"github.com/dimag-jfrog/priority-channels/channels"
 )
 

@@ -694,7 +694,7 @@ func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 			}
 		}()
 	} else {
-		priority_workers.CombineByFrequencyRatioWithCallback(ctx, childResultChannels, func(result priority_workers.ReceiveResult[string]) {
+		_, err := priority_workers.CombineByFrequencyRatioWithCallback(ctx, childResultChannels, func(result priority_workers.ReceiveResult[string]) {
 			if result.Status != priority_channels.ReceiveSuccess {
 				return
 			}
@@ -710,6 +710,9 @@ func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 				return
 			}
 		})
+		if err != nil {
+			t.Fatalf("failed on initializing CombineByFrequencyRatioWithCallback: %v", err)
+		}
 	}
 
 	<-ctx.Done()
@@ -874,7 +877,7 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 		//return processingChan, processingChanShutdownFunc, nil
 		processingChan, processingChanCancelFunc, err := priority_workers.ProcessChannel(ctx, channelName, cwr.channel)
 		if err != nil {
-			t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+			t.Fatalf("Unexpected error on initializing ProcessChannel: %v", err)
 		}
 		return processingChan, processingChanCancelFunc, nil
 	}
@@ -896,7 +899,7 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 		}
 		processingChan, processingChanShutdownFunc, err := priority_workers.ProcessByFrequencyRatio(ctx, channelsWithFreqRatio)
 		if err != nil {
-			t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+			t.Fatalf("Unexpected error on initializing ProcessByFrequencyRatio: %v", err)
 		}
 		return processingChan, processingChanShutdownFunc, nil
 	}
@@ -908,7 +911,7 @@ func doGenerateGoRoutinesPriorityChannelTreeFromFreqRatioTree(t *testing.T, ctx 
 	}
 	processingChan, processingChanShutdownFunc, err := priority_workers.CombineByFrequencyRatio(ctx, priorityChannelsWithFreqRatio)
 	if err != nil {
-		t.Fatalf("Unexpected error on priority channel intialization: %v", err)
+		t.Fatalf("Unexpected error on intializing CombineByFrequencyRatio: %v", err)
 	}
 	return processingChan, processingChanShutdownFunc, priorityChannelsWithFreqRatio
 }

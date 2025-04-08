@@ -408,7 +408,7 @@ func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityWork
 	//}
 
 	wg.Add(1)
-	priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channels, func(msg priority_workers.ReceiveResult[string]) {
+	err := priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channels, func(msg priority_workers.ReceiveResult[string]) {
 		if msg.Status != pc.ReceiveSuccess {
 			wg.Done()
 			return
@@ -420,6 +420,9 @@ func TestProcessMessagesByFrequencyRatio_WithMultiGoroutines_ByUsingPriorityWork
 		// simulate some activity
 		time.Sleep(50 * time.Microsecond)
 	})
+	if err != nil {
+		t.Fatalf("failed on initializing ProcessByFrequencyRatioWithCallback: %v", err)
+	}
 
 	wg.Wait()
 
@@ -792,7 +795,7 @@ func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing
 			}
 		}()
 	} else {
-		priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channelsWithFreqRatio, func(result priority_workers.ReceiveResult[string]) {
+		err := priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channelsWithFreqRatio, func(result priority_workers.ReceiveResult[string]) {
 			if result.Status != pc.ReceiveSuccess {
 				return
 			}
@@ -808,6 +811,9 @@ func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing
 				return
 			}
 		})
+		if err != nil {
+			t.Fatalf("failed on initializing ProcessByFrequencyRatioWithCallback: %v", err)
+		}
 	}
 
 	<-ctx.Done()
