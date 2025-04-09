@@ -28,7 +28,7 @@ func TestProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t,
+			testProcessMessagesOfCombinedChannelsByFrequencyRatio_RandomTree(t,
 				freqRatioTree,
 				nil,
 				nil,
@@ -63,7 +63,7 @@ func TestProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTreeSub
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t,
+			testProcessMessagesOfCombinedChannelsByFrequencyRatio_RandomTree(t,
 				freqRatioTree,
 				recomputedChannelsFreqRatios,
 				channelIndexesSubset,
@@ -91,7 +91,7 @@ func getRandomChannelIndexesSubset(channelsNum int) map[int]struct{} {
 	return channelIndexesSubset
 }
 
-func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t *testing.T,
+func testProcessMessagesOfCombinedChannelsByFrequencyRatio_RandomTree(t *testing.T,
 	freqRatioTree *freqRatioTreeNode,
 	recomputedChannelsFrequencyRatios map[int]float64,
 	channelIndexesSubset map[int]struct{},
@@ -133,9 +133,13 @@ func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 	totalCount := 0
 	countPerChannel := make(map[string]int)
 	var mtx sync.Mutex
+	processingDone := make(chan struct{})
 
 	_, err := priority_workers.CombineByFrequencyRatioWithCallback(ctx, childResultChannels, func(result priority_workers.ReceiveResult[string]) {
 		if result.Status != priority_channels.ReceiveSuccess {
+			if result.Status == priority_channels.ReceiveContextCancelled {
+				processingDone <- struct{}{}
+			}
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -155,6 +159,7 @@ func testProcessMessagesOfCombinedPriorityChannelsByFrequencyRatio_RandomTree(t 
 	}
 
 	<-ctx.Done()
+	<-processingDone
 
 	channelNames := make([]string, 0, len(channelsWithExpectedRatios))
 	for channelName := range channelsWithExpectedRatios {

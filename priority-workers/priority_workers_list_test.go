@@ -27,7 +27,7 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsList(t *testing.T) {
 	channelsWithFreqRatio, channelsWithExpectedRatios := generateRandomFreqRatioList(8, 16)
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t,
+			testProcessMessagesByFrequencyRatio_RandomChannelsList(t,
 				channelsWithFreqRatio, channelsWithExpectedRatios, nil, false)
 		})
 	}
@@ -55,7 +55,7 @@ func TestProcessMessagesByFrequencyRatio_RandomChannelsListSubset(t *testing.T) 
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t,
+			testProcessMessagesByFrequencyRatio_RandomChannelsList(t,
 				channelsWithFreqRatio, channelsWithExpectedRatios, channelIndexesSubset,
 				tc.CloseChannels)
 		})
@@ -118,7 +118,7 @@ func recomputeRandomFreqListExpectedRatios(
 	}
 }
 
-func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing.T,
+func testProcessMessagesByFrequencyRatio_RandomChannelsList(t *testing.T,
 	channelsWithFreqRatio []channels.ChannelWithFreqRatio[string],
 	channelsWithExpectedRatios map[string]*channelWithExpectedRatio,
 	channelIndexesSubset map[int]struct{},
@@ -154,9 +154,13 @@ func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing
 	totalCount := 0
 	countPerChannel := make(map[string]int)
 	var mtx sync.Mutex
+	processingDone := make(chan struct{})
 
 	err := priority_workers.ProcessByFrequencyRatioWithCallback(ctx, channelsWithFreqRatio, func(result priority_workers.ReceiveResult[string]) {
 		if result.Status != priority_channels.ReceiveSuccess {
+			if result.Status == priority_channels.ReceiveContextCancelled {
+				processingDone <- struct{}{}
+			}
 			return
 		}
 		time.Sleep(1 * time.Millisecond)
@@ -176,6 +180,7 @@ func testProcessMessagesByFrequencyRatio_RandomChannelsListWithMethod(t *testing
 	}
 
 	<-ctx.Done()
+	<-processingDone
 
 	totalDiff := 0.0
 	channelNames := make([]string, 0, len(channelsWithExpectedRatios))
